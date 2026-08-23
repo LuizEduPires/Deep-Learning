@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+data/agrofit/*.csv
+banco/_gerado/
+.env.bak*
+Rag/

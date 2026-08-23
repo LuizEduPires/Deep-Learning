@@ -1,0 +1,19 @@
+# Normaliza quebras de linha: o repositório guarda LF, e cada máquina faz o
+# checkout no formato do seu sistema. Sem isto, um clone em Linux ou uma
+# execução em CI apareceria com o arquivo inteiro modificado — o diff deixaria
+# de mostrar a mudança real.
+* text=auto
+
+# Formatos binários: nunca converter, sob pena de corromper o arquivo.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# Gerado por ferramenta: some do diff em revisões e da contagem de linguagem.
+package-lock.json linguist-generated=true -diff
