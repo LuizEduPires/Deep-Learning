@@ -1,0 +1,44 @@
+{
+  "name": "ia-pitaya",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:up": "docker compose -f banco/docker-compose.yml up -d",
+    "db:down": "docker compose -f banco/docker-compose.yml down",
+    "db:adminer": "docker compose -f banco/docker-compose.yml --profile ferramentas up -d adminer",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "db:studio": "drizzle-kit studio --config=banco/drizzle.config.ts",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/ingest.ts",
+    "rag:pdf": "python scripts/pdf-para-md.py",
+    "agrofit:sync": "tsx --env-file-if-exists=.env scripts/agrofit-sync.ts",
+    "agrofit:import": "tsx --env-file-if-exists=.env scripts/import-agrofit.ts",
+    "bioinsumos:test": "tsx --env-file-if-exists=.env scripts/bioinsumos-test.ts",
+    "llm:test": "tsx --env-file-if-exists=.env scripts/llm-test.ts",
+    "bioinsumos:sync": "tsx --env-file-if-exists=.env scripts/bioinsumos-sync.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "drizzle-orm": "^0.45.2",
+    "next": "^16.2.12",
+    "openai": "^7.2.0",
+    "pg": "^8.22.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "csv-parse": "^7.0.1",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  }
+}

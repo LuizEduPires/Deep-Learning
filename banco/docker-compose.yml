@@ -1,0 +1,35 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: pitaya-db
+    environment:
+      POSTGRES_USER: pitaya
+      POSTGRES_PASSWORD: pitaya
+      POSTGRES_DB: pitaya
+    ports:
+      - "5432:5432"
+    volumes:
+      - pitaya-pgdata:/var/lib/postgresql/data
+
+  # Cliente web do banco. Fica atrás de um profile para que
+  # `docker compose up -d` continue significando "só o banco".
+  #
+  #   docker compose --profile ferramentas up -d
+  #
+  # Existe porque o Drizzle Studio depende de uma página HTTPS externa
+  # (local.drizzle.studio) alcançar o localhost, e o Chrome bloqueia isso por
+  # padrão. O Adminer é servido do próprio localhost: sem origem cruzada, sem
+  # permissão para liberar.
+  adminer:
+    image: adminer:latest
+    container_name: pitaya-adminer
+    profiles: ["ferramentas"]
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      - db
+
+volumes:
+  pitaya-pgdata:
