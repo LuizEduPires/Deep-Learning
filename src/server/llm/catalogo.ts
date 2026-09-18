@@ -57,7 +57,7 @@ export const CATALOGO: ProvedorCatalogo[] = [
     rotulo: "OpenAI",
     envChave: "OPENAI_API_KEY",
     modeloPadrao: "gpt-4o",
-    ajuda: "Chave em platform.openai.com. Consome crédito da conta.",
+    ajuda: "Chave da OpenAI ou do servidor compatível configurado.",
     modelos: [
       { id: "gpt-5", rotulo: "GPT-5" },
       { id: "gpt-5-mini", rotulo: "GPT-5 mini", nota: "mais barato" },

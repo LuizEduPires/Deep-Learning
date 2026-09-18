@@ -1,0 +1,17 @@
+# Sobreposição opcional para testes HTTPS na rede local.
+# Use com: docker compose -f compose.yml -f compose.https.yml up -d --build
+services:
+  gateway-tls:
+    image: nginx:stable-alpine
+    networks:
+      - pitaya_web
+      - ingresso
+    ports:
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_HTTPS_PORT:-3443}:8443"
+    volumes:
+      - ./deploy/ingress/https.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/ingress/certs:/etc/nginx/certs:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped

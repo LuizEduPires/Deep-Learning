@@ -1,0 +1,8 @@
+api.openai.com
+api.anthropic.com
+openrouter.ai
+integrate.api.nvidia.com
+api.cnptia.embrapa.br
+api.open-meteo.com
+archive-api.open-meteo.com
+challenges.cloudflare.com

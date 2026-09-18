@@ -1,0 +1,125 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: pitaya
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+      POSTGRES_DB: pitaya
+    networks:
+      - pitaya
+    volumes:
+      - pitaya-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U pitaya -d pitaya"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  egress-proxy:
+    build: ./deploy/egress
+    environment:
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+    networks:
+      - pitaya_egress
+      - internet
+    healthcheck:
+      test: ["CMD", "nc", "-z", "-w", "2", "localhost", "3128"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  init:
+    build:
+      context: .
+      target: maintenance
+    env_file: .env
+    networks:
+      - pitaya
+      - pitaya_egress
+    environment:
+      DATABASE_URL: postgres://pitaya:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@db:5432/pitaya
+      NODE_USE_ENV_PROXY: "1"
+      HTTP_PROXY: http://egress-proxy:3128
+      HTTPS_PROXY: http://egress-proxy:3128
+      NO_PROXY: localhost,127.0.0.1,db,app
+      http_proxy: http://egress-proxy:3128
+      https_proxy: http://egress-proxy:3128
+      no_proxy: localhost,127.0.0.1,db,app
+    command: ["sh", "-c", "npm run db:migrate && npm run db:seed -- --if-changed"]
+    depends_on:
+      db:
+        condition: service_healthy
+      egress-proxy:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    env_file: .env
+    networks:
+      - pitaya
+      - pitaya_web
+      - pitaya_egress
+    environment:
+      DATABASE_URL: postgres://pitaya:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@db:5432/pitaya
+      NODE_USE_ENV_PROXY: "1"
+      HTTP_PROXY: http://egress-proxy:3128
+      HTTPS_PROXY: http://egress-proxy:3128
+      NO_PROXY: localhost,127.0.0.1,db,app
+      http_proxy: http://egress-proxy:3128
+      https_proxy: http://egress-proxy:3128
+      no_proxy: localhost,127.0.0.1,db,app
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
+  gateway:
+    image: nginx:stable-alpine
+    networks:
+      - pitaya_web
+      - ingresso
+    ports:
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-3000}:8080"
+    volumes:
+      - ./deploy/ingress/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  pitaya:
+    name: pitaya
+    driver: bridge
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+  pitaya_web:
+    driver: bridge
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+  pitaya_egress:
+    driver: bridge
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+  ingresso:
+    driver: bridge
+  internet:
+    driver: bridge
+
+volumes:
+  pitaya-pgdata:

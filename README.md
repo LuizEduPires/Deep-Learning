@@ -5,6 +5,7 @@ histórico, registros fitossanitários do MAPA e uma base própria de conhecimen
 técnico, sempre citando a fonte que usou.
 
 - **Como rodar (passo a passo):** [docs/02-como-rodar.md](docs/02-como-rodar.md)
+- **Deploy com Docker Compose e Turnstile:** [docs/11-deploy-docker-compose.md](docs/11-deploy-docker-compose.md)
 - Handoff de produto: [docs/00-handoff-produto.md](docs/00-handoff-produto.md)
 - Arquitetura de dados: [docs/01-arquitetura-dados.md](docs/01-arquitetura-dados.md)
 - Drizzle Studio: [docs/03-drizzle-studio.md](docs/03-drizzle-studio.md)
@@ -70,6 +71,44 @@ OPENROUTER_API_KEY=sk-or-...
 LLM_MODEL=openai/gpt-4o         # opcional — vazio usa o padrão do provedor
 ```
 
+### Servidor compatível com OpenAI
+
+Configure a **URL base da API**, incluindo `/v1` se esse for o prefixo usado
+pelo seu servidor:
+
+```dotenv
+LLM_PROVIDER=openai
+OPENAI_API_KEY=chave-do-seu-servidor
+OPENAI_BASE_URL=https://llm.exemplo.com/v1
+LLM_MODEL=nome-do-modelo-no-servidor
+# Se o servidor não oferecer embeddings:
+EMBEDDINGS_ENABLED=false
+```
+
+Neste exemplo, o app chama `POST https://llm.exemplo.com/v1/chat/completions`
+para o chat e, quando embeddings estão habilitados,
+`POST https://llm.exemplo.com/v1/embeddings` para o RAG. **Não** coloque
+`/chat/completions`, `/embeddings` ou `/models` em `OPENAI_BASE_URL`: são caminhos
+de operação, não a URL base. O app não consulta `/models` para o provedor
+`openai`; escolha `LLM_MODEL` no `.env` ou "Outro modelo…" no painel. Se seu
+servidor oferece `/chat/completions` diretamente na raiz, use só
+`https://llm.exemplo.com`; se oferece outro prefixo, informe esse prefixo.
+Confira os caminhos na documentação oficial da OpenAI para
+[Chat Completions](https://developers.openai.com/api/reference/resources/chat)
+e [embeddings](https://developers.openai.com/api/reference/resources/embeddings/methods/create).
+
+A mesma `OPENAI_BASE_URL` e a mesma chave valem para chat e embeddings. Ajuste
+`EMBEDDINGS_MODEL` para um modelo de embeddings do servidor, ou use
+`EMBEDDINGS_ENABLED=false` para manter a busca full-text. O modelo de chat
+precisa aceitar tool calling; `docker compose run --rm init npm run llm:test`
+verifica isso. No Compose, o domínio de `OPENAI_BASE_URL` é liberado
+automaticamente no `egress-proxy`; o proxy exige HTTPS na porta 443 e bloqueia
+endereços privados. Depois de editar `.env`, execute
+`docker compose up -d --build` para recriar os serviços. O banco armazena
+vetores de 1536 dimensões; embeddings de outro tamanho caem para busca
+full-text. Se habilitar embeddings depois da primeira
+carga, rode `docker compose run --rm init npm run db:seed` para recriar os vetores.
+
 Para demonstrar a aplicação sem custo, a **NVIDIA** é o caminho mais curto:
 chave gratuita e sem cartão em build.nvidia.com, cota própria e uma centena de
 modelos abertos — ver [docs/10-nvidia.md](docs/10-nvidia.md). Como cada
@@ -99,7 +138,7 @@ do catálogo, e as tools e o resto da aplicação não mudam.
 | Open-Meteo (previsão) | `previsao_tempo` | Não |
 | ClimAPI Embrapa / Open-Meteo Archive | `clima_historico` | Opcional — sem `AGROAPI_TOKEN` usa Open-Meteo |
 | Agrofit (API) / Dados Abertos Agrofit | `consulta_agrofit` | Opcional — a consulta usa a cópia local |
-| Base própria (RAG) | `busca_conhecimento` | Não — sem `OPENAI_API_KEY` usa busca full-text |
+| Base própria (RAG) | `busca_conhecimento` | Não — sem embeddings usa busca full-text |
 | Responde Agro | `responde_agro` | Sim — a tool só é registrada se houver `AGROAPI_TOKEN` |
 
 Nenhuma fonte é bloqueante: cada uma tem plano B, e a falha de uma não derruba

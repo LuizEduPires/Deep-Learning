@@ -23,6 +23,17 @@ Abra **http://localhost:3000/agrofit**. Pronto — a base já está carregada.
 O resto deste documento é para quando algo sair do esperado, ou quando você
 quiser atualizar os dados.
 
+Para testar o deploy Docker Compose pela rede local ou por contêineres em
+outras redes, o gateway publica a porta 3000 em todas as interfaces do host.
+Use o IP do servidor na LAN ou `host.docker.internal` em outro contêiner; o
+HTTPS opcional usa a porta 3443 e um certificado de teste. Veja
+[Acesso pela rede local para testes](11-deploy-docker-compose.md#acesso-pela-rede-local-para-testes).
+
+O Turnstile é opcional: se uma ou ambas as chaves (`TURNSTILE_SITE_KEY` e
+`TURNSTILE_SECRET_KEY`) estiverem vazias, o site abre normalmente. Para ativar
+a tela de verificação no deploy, veja
+[Verificação de acesso com Cloudflare Turnstile](11-deploy-docker-compose.md#verificação-de-acesso-com-cloudflare-turnstile).
+
 ---
 
 ## 1. Pré-requisitos
@@ -231,12 +242,19 @@ NVIDIA_API_KEY=nvapi-...
 OPENROUTER_API_KEY=sk-or-...
 ```
 
-As outras duas cobram por uso:
+Para Anthropic ou para a API oficial da OpenAI, use as respectivas chaves:
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
 ```
+
+Um servidor compatível com OpenAI também usa `LLM_PROVIDER=openai`, mas
+precisa de `OPENAI_BASE_URL` com a URL base da API (por exemplo,
+`https://llm.exemplo.com/v1`) e do `LLM_MODEL` correto. O app acrescenta
+`/chat/completions` e, se embeddings estiverem habilitados, `/embeddings`;
+`/models` não faz parte da URL base. Veja
+[Servidor compatível com OpenAI](../README.md#servidor-compatível-com-openai).
 
 Começando do zero, `.env.nvidia.example` já tem o mínimo para rodar só com a
 NVIDIA: `cp .env.nvidia.example .env` e cole a chave.

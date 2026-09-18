@@ -8,3 +8,4 @@ data/agrofit/*.csv
 banco/_gerado/
 .env.bak*
 Rag/
+deploy/ingress/certs/
