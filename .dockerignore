@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.idea
+.env
+.env.*
+!.env.example
+!.env.nvidia.example
+*.tsbuildinfo
+data/agrofit/*.csv
+banco/_gerado
+Rag

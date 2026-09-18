@@ -8,6 +8,9 @@
  *
  *   npm run db:seed
  */
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { pool } from "../src/server/db";
 import { embeddingsDisponiveis } from "../src/server/embeddings";
 import { arquivosDeConhecimento, ingerirTodos } from "../src/server/ingestao";
@@ -20,16 +23,45 @@ async function main() {
     process.exit(1);
   }
 
+  // Em produção, a ingestão só roda quando o conteúdo da imagem mudou.
+  // A marca é gravada depois do lote completo; uma falha permite nova tentativa.
+  const hash = createHash("sha256");
+  for (const arquivo of [...arquivos].sort()) {
+    hash.update(basename(arquivo));
+    hash.update("\0");
+    hash.update(readFileSync(arquivo));
+    hash.update("\0");
+  }
+  const sha256 = hash.digest("hex");
+  if (process.argv.includes("--if-changed")) {
+    const { rows } = await pool.query<{ sha256: string | null }>(
+      "SELECT valor->>'sha256' AS sha256 FROM configuracoes WHERE chave = $1",
+      ["knowledge_seed"],
+    );
+    if (rows[0]?.sha256 === sha256) {
+      console.log("Base de conhecimento já corresponde aos arquivos da imagem.");
+      await pool.end();
+      return;
+    }
+  }
+
   console.log(
     embeddingsDisponiveis()
       ? "Embeddings habilitados (busca vetorial)."
-      : "Sem OPENAI_API_KEY — gravando sem embeddings (busca full-text).",
+      : "Embeddings desativados — gravando com busca full-text.",
   );
 
   await ingerirTodos(({ titulo, chunks }) =>
     console.log(`✓ ${titulo} — ${chunks} chunk(s)`),
   );
 
+  await pool.query(
+    `INSERT INTO configuracoes (chave, valor)
+     VALUES ($1, $2::jsonb)
+     ON CONFLICT (chave) DO UPDATE
+       SET valor = EXCLUDED.valor, atualizado_em = now()`,
+    ["knowledge_seed", JSON.stringify({ sha256 })],
+  );
   await pool.end();
   console.log("Ingestão concluída.");
 }

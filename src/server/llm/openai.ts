@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { criarClienteOpenAI } from "./openai-client";
 import type {
   ChatRequest,
   ChatResponse,
@@ -135,6 +136,6 @@ export function createOpenAiProvider(model?: string): LlmProvider {
   return createOpenAiCompatibleProvider({
     name: "openai",
     model: model || DEFAULT_MODEL,
-    client: new OpenAI(),
+    client: criarClienteOpenAI(),
   });
 }
