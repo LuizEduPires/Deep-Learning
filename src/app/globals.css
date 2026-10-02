@@ -1,29 +1,101 @@
 @import "tailwindcss";
 
+/*
+ * Tokens do redesign: verde de cacto como cor da marca, magenta da pitaya
+ * como destaque. "-texto" é a variante legível como cor de texto sobre o
+ * fundo; a base serve de preenchimento sob texto branco.
+ */
 :root {
-  --fundo: #fdfbf7;
-  --texto: #2a241e;
-  --suave: #6b6157;
-  --borda: #e6ded2;
-  --acento: #b8355c;
-  --acento-suave: #fbeef2;
+  --fundo: #f5f1e8;
   --painel: #ffffff;
+  --texto: #17261c;
+  --texto-2: #3f4a43;
+  --suave: #56615a;
+  --borda: #e4ddcf;
+  --linha: #efe9dd;
+  --trilho: #eae4d6;
+
+  --marca: #1e5b3a;
+  --marca-texto: #1e5b3a;
+  --marca-suave: #e3ede2;
+
+  --acento: #c2185b;
+  --acento-texto: #a3134c;
+  --acento-suave: #fbe4ee;
+
+  --alerta: #8a4b00;
+  --alerta-texto: #6e3c00;
+  --alerta-suave: #fcefd9;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fundo: #17130f;
-    --texto: #f0e9e0;
-    --suave: #a89d90;
-    --borda: #332a22;
-    --acento: #e86a92;
-    --acento-suave: #2a1a20;
-    --painel: #201a15;
+    --fundo: #111813;
+    --painel: #1a231c;
+    --texto: #eef2ec;
+    --texto-2: #c5cec7;
+    --suave: #a3afa6;
+    --borda: #2c372f;
+    --linha: #242e27;
+    --trilho: #202a23;
+
+    --marca: #2f7a50;
+    --marca-texto: #8fd1a3;
+    --marca-suave: #1d3325;
+
+    --acento: #c8276a;
+    --acento-texto: #f07aa6;
+    --acento-suave: #3a1a28;
+
+    --alerta: #f2c27a;
+    --alerta-texto: #f2c27a;
+    --alerta-suave: #3a2a10;
   }
+}
+
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-painel: var(--painel);
+  --color-texto: var(--texto);
+  --color-texto-2: var(--texto-2);
+  --color-suave: var(--suave);
+  --color-borda: var(--borda);
+  --color-linha: var(--linha);
+  --color-trilho: var(--trilho);
+  --color-marca: var(--marca);
+  --color-marca-texto: var(--marca-texto);
+  --color-marca-suave: var(--marca-suave);
+  --color-acento: var(--acento);
+  --color-acento-texto: var(--acento-texto);
+  --color-acento-suave: var(--acento-suave);
+  --color-alerta: var(--alerta);
+  --color-alerta-texto: var(--alerta-texto);
+  --color-alerta-suave: var(--alerta-suave);
+
+  --font-sans: var(--fonte-texto), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--fonte-titulo), var(--fonte-texto), ui-sans-serif, sans-serif;
 }
 
 body {
   background: var(--fundo);
   color: var(--texto);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * Anel de foco só em controles clicáveis. Campos de texto já mudam a cor da
+ * borda ao receber foco; com o anel também, o celular mostrava um retângulo
+ * magenta dentro da caixa arredondada do chat. Fica em @layer base para que
+ * utilitários do Tailwind possam sobrescrevê-lo.
+ */
+@layer base {
+  :where(a, button, select, summary, [role="radio"], [tabindex]):focus-visible {
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
+  }
+
+  :where(input, textarea):focus {
+    outline: none;
+  }
 }

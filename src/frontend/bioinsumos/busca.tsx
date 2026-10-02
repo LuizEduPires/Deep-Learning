@@ -1,6 +1,20 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Campo, Chip, Etiqueta, Segmentado, classeCartao } from "../ui";
+import {
+  AvisoReceituario,
+  Caixinha,
+  CabecalhoProdutos,
+  Carregando,
+  CartaoProduto,
+  Contagem,
+  Erro,
+  PainelFiltros,
+  Paginacao,
+  Vazio,
+  usarCulturas,
+} from "../produtos/comum";
 
 type Produto = {
   numero_registro: string | null;
@@ -92,7 +106,7 @@ const EXEMPLOS: Record<Aba, { rotulo: string; filtros: Partial<Filtros> }[]> = {
     { rotulo: "Mosca-branca", filtros: { praga: "Mosca-branca" } },
     { rotulo: "Com Bacillus", filtros: { ingrediente: "Bacillus" } },
     { rotulo: "Fungicidas microbiológicos", filtros: { classe: "Fungicida Microbiológico" } },
-    { rotulo: "Aprovados para orgânico", filtros: { organico: true } },
+    { rotulo: "Uso orgânico", filtros: { organico: true } },
   ],
   inoculantes: [
     { rotulo: "Para soja", filtros: { cultura: "Soja" } },
@@ -101,7 +115,9 @@ const EXEMPLOS: Record<Aba, { rotulo: string; filtros: Partial<Filtros> }[]> = {
   ],
 };
 
-type CulturaDoProduto = { cultura: string; alvos: string | null };
+function igual(a: Filtros, b: Partial<Filtros>) {
+  return JSON.stringify(a) === JSON.stringify({ ...VAZIO, ...b });
+}
 
 export default function BuscaBioinsumos() {
   const [aba, setAba] = useState<Aba>("produtos");
@@ -111,25 +127,7 @@ export default function BuscaBioinsumos() {
   const [vocab, setVocab] = useState<Vocabulario | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [aberto, setAberto] = useState<string | null>(null);
-  const [culturas, setCulturas] = useState<Record<string, CulturaDoProduto[]>>({});
-
-  async function alternarCulturas(registro: string | null) {
-    if (!registro) return;
-    if (aberto === registro) {
-      setAberto(null);
-      return;
-    }
-    setAberto(registro);
-    if (culturas[registro]) return;
-    try {
-      const res = await fetch(`/api/bioinsumos/culturas?registro=${encodeURIComponent(registro)}`);
-      const json = await res.json();
-      if (res.ok) setCulturas((c) => ({ ...c, [registro]: json.culturas }));
-    } catch {
-      // Falha aqui não pode derrubar a listagem: a linha só não expande.
-    }
-  }
+  const culturas = usarCulturas("/api/bioinsumos/culturas");
 
   useEffect(() => {
     fetch("/api/bioinsumos/vocabulario")
@@ -189,7 +187,7 @@ export default function BuscaBioinsumos() {
     if (nova === aba) return;
     setAba(nova);
     setPagina(1);
-    setAberto(null);
+    culturas.setAberto(null);
     // A cultura sobrevive à troca: é o único filtro comum às duas abas, e
     // perdê-la faria o usuário redigitar para ver o outro lado do mesmo tema.
     setFiltros({ ...VAZIO, cultura: filtros.cultura });
@@ -198,476 +196,282 @@ export default function BuscaBioinsumos() {
   const temFiltro = Object.entries(filtros).some(([, v]) => v !== "" && v !== false);
   const produtos = dados?.aba === "produtos" ? (dados.itens as Produto[]) : [];
   const inoculantes = dados?.aba === "inoculantes" ? (dados.itens as Inoculante[]) : [];
-  const colunas = dados?.temAlvos ? 8 : 7;
+  const extrasAtivos = (
+    aba === "produtos"
+      ? [filtros.q, filtros.ingrediente, filtros.titular, filtros.classe, filtros.organico]
+      : [filtros.q, filtros.uf]
+  ).filter((v) => v !== "" && v !== false).length;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Bioinsumos</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--suave)" }}>
-          Produtos biológicos e inoculantes registrados no MAPA. Consulta direta
-          à cópia local da API Bioinsumos — sem IA, sem inferência: o que aparece
-          aqui é o que está na base.{" "}
-          <a href="/agrofit" className="underline" style={{ color: "var(--acento)" }}>
-            Base Agrofit
-          </a>{" "}
-          ·{" "}
-          <a href="/" className="underline" style={{ color: "var(--acento)" }}>
-            chat da pitaya
-          </a>
-        </p>
-      </header>
+    <main className="mx-auto flex max-w-6xl flex-col gap-4 px-5 pt-6 pb-8 md:px-8 md:pt-8">
+      <CabecalhoProdutos base="bioinsumos" />
 
-      <div className="mb-4 flex gap-1 border-b" style={{ borderColor: "var(--borda)" }}>
-        <Guia rotulo="Controle de pragas" ativa={aba === "produtos"} aoClicar={() => trocarAba("produtos")} />
-        <Guia rotulo="Inoculantes" ativa={aba === "inoculantes"} aoClicar={() => trocarAba("inoculantes")} />
+      <div className="max-w-md">
+        <Segmentado
+          rotulo="Tipo de bioinsumo"
+          valor={aba}
+          aoMudar={trocarAba}
+          opcoes={[
+            { valor: "produtos", rotulo: "Controle de pragas" },
+            { valor: "inoculantes", rotulo: "Inoculantes" },
+          ]}
+        />
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      {aba === "produtos" ? (
+        <PainelFiltros
+          key="produtos"
+          extrasAtivos={extrasAtivos}
+          principais={
+            <>
+              <Campo
+                rotulo="Praga ou doença"
+                valor={filtros.praga}
+                aoMudar={(v) => mudar("praga", v)}
+                lista={vocab?.pragas}
+                listaId="bio-pragas"
+                dica="Nome comum ou científico"
+                icone="busca"
+              />
+              <Campo
+                rotulo="Cultura"
+                valor={filtros.cultura}
+                aoMudar={(v) => mudar("cultura", v)}
+                lista={vocab?.culturas}
+                listaId="bio-culturas"
+                dica="Inclui os de uso geral"
+                icone="broto"
+              />
+            </>
+          }
+          extras={
+            <>
+              <Campo rotulo="Produto ou nº de registro" valor={filtros.q} aoMudar={(v) => mudar("q", v)} dica="Ex.: Dipel, 24618" />
+              <Campo
+                rotulo="Ingrediente ativo"
+                valor={filtros.ingrediente}
+                aoMudar={(v) => mudar("ingrediente", v)}
+                lista={vocab?.ingredientes}
+                listaId="bio-ingredientes"
+                dica="Ex.: Bacillus, Trichoderma"
+              />
+              <Campo
+                rotulo="Titular do registro"
+                valor={filtros.titular}
+                aoMudar={(v) => mudar("titular", v)}
+                lista={vocab?.titulares}
+                listaId="bio-titulares"
+              />
+              <Campo
+                rotulo="Classe agronômica"
+                valor={filtros.classe}
+                aoMudar={(v) => mudar("classe", v)}
+                lista={vocab?.classes}
+                listaId="bio-classes"
+                dica="Ex.: Inseticida Microbiológico"
+              />
+              <div className="flex items-end">
+                <Caixinha rotulo="Uso orgânico" marcado={filtros.organico} aoMudar={(v) => mudar("organico", v)} />
+              </div>
+            </>
+          }
+        />
+      ) : (
+        <PainelFiltros
+          key="inoculantes"
+          extrasAtivos={extrasAtivos}
+          principais={
+            <>
+              <Campo
+                rotulo="Cultura"
+                valor={filtros.cultura}
+                aoMudar={(v) => mudar("cultura", v)}
+                lista={vocab?.culturas}
+                listaId="bio-culturas"
+                dica="Ex.: Soja, Feijão"
+                icone="broto"
+              />
+              <Campo
+                rotulo="Espécie"
+                valor={filtros.especie}
+                aoMudar={(v) => mudar("especie", v)}
+                lista={vocab?.especies}
+                listaId="bio-especies"
+                dica="Ex.: Bradyrhizobium"
+                icone="busca"
+              />
+            </>
+          }
+          extras={
+            <>
+              <Campo rotulo="Registro ou empresa" valor={filtros.q} aoMudar={(v) => mudar("q", v)} dica="Ex.: PR0023604-19, Forbio" />
+              <Campo
+                rotulo="Tipo"
+                valor={filtros.tipo}
+                aoMudar={(v) => mudar("tipo", v)}
+                lista={vocab?.tipos}
+                listaId="bio-tipos"
+                dica="Ex.: fixadora de nitrogênio"
+              />
+              <Campo
+                rotulo="UF"
+                valor={filtros.uf}
+                aoMudar={(v) => mudar("uf", v)}
+                lista={vocab?.ufs}
+                listaId="bio-ufs"
+                dica="Sigla do estado do registro"
+              />
+            </>
+          }
+        />
+      )}
+
+      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0">
         {EXEMPLOS[aba].map((e) => (
-          <button
-            key={e.rotulo}
-            onClick={() => aplicarExemplo(e.filtros)}
-            className="rounded-full border px-3 py-1 text-xs transition"
-            style={{ borderColor: "var(--borda)", color: "var(--suave)" }}
-          >
+          <Chip key={e.rotulo} ativo={igual(filtros, e.filtros)} aoClicar={() => aplicarExemplo(e.filtros)}>
             {e.rotulo}
-          </button>
+          </Chip>
         ))}
         {temFiltro && (
           <button
+            type="button"
             onClick={() => aplicarExemplo({})}
-            className="rounded-full px-3 py-1 text-xs underline"
-            style={{ color: "var(--acento)" }}
+            className="min-h-10 shrink-0 px-2 text-sm font-bold text-acento-texto"
           >
-            limpar
+            Limpar
           </button>
         )}
       </div>
 
-      <section
-        className="mb-6 grid gap-3 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-3"
-        style={{ borderColor: "var(--borda)", background: "var(--painel)" }}
-      >
-        {aba === "produtos" ? (
-          <>
-            <Campo
-              rotulo="Produto ou nº de registro"
-              valor={filtros.q}
-              aoMudar={(v) => mudar("q", v)}
-              dica="Ex.: Dipel, 24618"
-            />
-            <Campo
-              rotulo="Cultura"
-              valor={filtros.cultura}
-              aoMudar={(v) => mudar("cultura", v)}
-              lista={vocab?.culturas}
-              listaId="bio-culturas"
-              dica="Inclui os de uso geral"
-            />
-            <Campo
-              rotulo="Praga ou doença"
-              valor={filtros.praga}
-              aoMudar={(v) => mudar("praga", v)}
-              lista={vocab?.pragas}
-              listaId="bio-pragas"
-              dica="Nome comum ou científico"
-            />
-            <Campo
-              rotulo="Ingrediente ativo"
-              valor={filtros.ingrediente}
-              aoMudar={(v) => mudar("ingrediente", v)}
-              lista={vocab?.ingredientes}
-              listaId="bio-ingredientes"
-              dica="Ex.: Bacillus, Trichoderma"
-            />
-            <Campo
-              rotulo="Titular do registro"
-              valor={filtros.titular}
-              aoMudar={(v) => mudar("titular", v)}
-              lista={vocab?.titulares}
-              listaId="bio-titulares"
-            />
-            <Campo
-              rotulo="Classe agronômica"
-              valor={filtros.classe}
-              aoMudar={(v) => mudar("classe", v)}
-              lista={vocab?.classes}
-              listaId="bio-classes"
-              dica="Ex.: Inseticida Microbiológico"
-            />
-            <div className="flex items-end gap-4 text-sm">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={filtros.organico}
-                  onChange={(e) => mudar("organico", e.target.checked)}
-                />
-                Uso orgânico
-              </label>
-            </div>
-          </>
-        ) : (
-          <>
-            <Campo
-              rotulo="Registro ou empresa"
-              valor={filtros.q}
-              aoMudar={(v) => mudar("q", v)}
-              dica="Ex.: PR0023604-19, Forbio"
-            />
-            <Campo
-              rotulo="Cultura"
-              valor={filtros.cultura}
-              aoMudar={(v) => mudar("cultura", v)}
-              lista={vocab?.culturas}
-              listaId="bio-culturas"
-              dica="Ex.: Soja, Feijão"
-            />
-            <Campo
-              rotulo="Espécie"
-              valor={filtros.especie}
-              aoMudar={(v) => mudar("especie", v)}
-              lista={vocab?.especies}
-              listaId="bio-especies"
-              dica="Ex.: Bradyrhizobium"
-            />
-            <Campo
-              rotulo="Tipo"
-              valor={filtros.tipo}
-              aoMudar={(v) => mudar("tipo", v)}
-              lista={vocab?.tipos}
-              listaId="bio-tipos"
-              dica="Ex.: fixadora de nitrogênio"
-            />
-            <Campo
-              rotulo="UF"
-              valor={filtros.uf}
-              aoMudar={(v) => mudar("uf", v)}
-              lista={vocab?.ufs}
-              listaId="bio-ufs"
-              dica="Sigla do estado do registro"
-            />
-          </>
-        )}
-      </section>
+      <AvisoReceituario />
 
-      <div className="mb-3 text-sm" style={{ color: "var(--suave)" }}>
-        {carregando
-          ? "Consultando…"
-          : erro
-            ? ""
-            : dados
-              ? `${dados.total.toLocaleString("pt-BR")} ${
-                  dados.aba === "produtos" ? "produto(s)" : "registro(s)"
-                }` +
-                (dados.paginas > 1 ? ` — página ${dados.pagina} de ${dados.paginas}` : "") +
+      <Contagem
+        texto={
+          carregando
+            ? "Consultando…"
+            : dados && !erro
+              ? `${dados.total.toLocaleString("pt-BR")} ${dados.aba === "produtos" ? "produto(s)" : "registro(s)"}` +
                 (dados.atualizadoEm ? ` · cadastro de ${dados.atualizadoEm}` : "")
-              : ""}
-      </div>
+              : ""
+        }
+      />
 
-      {erro && (
-        <p className="rounded-lg border p-4 text-sm" style={{ borderColor: "var(--acento)" }}>
-          {erro}
-        </p>
-      )}
+      {erro && <Erro texto={erro} />}
 
       {/* O aviso do "Todas as culturas" é o ponto sutil desta base: sem ele o
           usuário acha que o produto foi registrado nominalmente para a cultura
           dele, quando o registro é genérico. */}
-      {dados?.aba === "produtos" &&
-        filtros.cultura &&
-        (dados.viaTodasAsCulturas ?? 0) > 0 &&
-        !carregando && (
-          <p
-            className="mb-3 rounded-lg border p-3 text-xs"
-            style={{ borderColor: "var(--borda)", background: "var(--acento-suave)" }}
-          >
-            {dados.viaTodasAsCulturas} dos {dados.total} casaram por{" "}
-            <strong>&ldquo;Todas as culturas&rdquo;</strong> — registro geral, que
-            vale para {filtros.cultura} sem citá-la. As linhas assim vêm marcadas.
-          </p>
-        )}
+      {dados?.aba === "produtos" && filtros.cultura && (dados.viaTodasAsCulturas ?? 0) > 0 && !carregando && (
+        <p className="rounded-2xl bg-alerta-suave px-3.5 py-3 text-[13px] leading-snug text-alerta-texto">
+          {dados.viaTodasAsCulturas} dos {dados.total} casaram por{" "}
+          <strong>&ldquo;Todas as culturas&rdquo;</strong> — registro geral, que vale para{" "}
+          {filtros.cultura} sem citá-la. Esses cartões vêm marcados.
+        </p>
+      )}
+
+      {carregando && !dados && <Carregando />}
 
       {/* Base não coletada e registro inexistente são coisas diferentes, e
           tratar as duas como "nenhum resultado" faria o usuário concluir que
           não há bioinsumo para a cultura dele. */}
       {dados?.baseVazia && !carregando && (
-        <div
-          className="rounded-lg border p-4 text-sm"
-          style={{ borderColor: "var(--acento)", background: "var(--painel)" }}
-        >
-          <p className="font-medium">A base local ainda não foi coletada.</p>
-          <p className="mt-1" style={{ color: "var(--suave)" }}>
-            Esta página lê a cópia no Postgres, não a API da Embrapa. Rode{" "}
-            <code>npm run bioinsumos:sync</code> uma vez (leva ~40s) e recarregue.
-          </p>
-        </div>
+        <Vazio titulo="A base local ainda não foi coletada.">
+          Esta página lê a cópia no Postgres, não a API da Embrapa. Rode{" "}
+          <code>npm run bioinsumos:sync</code> uma vez (leva ~40s) e recarregue.
+        </Vazio>
       )}
 
       {dados && dados.total === 0 && !dados.baseVazia && !carregando && (
-        <div
-          className="rounded-lg border p-4 text-sm"
-          style={{ borderColor: "var(--borda)", background: "var(--painel)" }}
-        >
-          <p className="font-medium">Nenhum registro para esses filtros.</p>
-          <p className="mt-1" style={{ color: "var(--suave)" }}>
-            A base de bioinsumos é pequena — 834 produtos biológicos e 1.032
-            inoculantes —, então isso costuma significar que o registro não existe
-            mesmo. Confira a grafia da cultura: a busca compara com o nome do MAPA
-            (&ldquo;Pitaya&rdquo;, não &ldquo;pitaia&rdquo;).
-          </p>
+        <Vazio titulo="Nenhum registro para esses filtros.">
+          A base de bioinsumos é pequena — 834 produtos biológicos e 1.032 inoculantes —, então isso
+          costuma significar que o registro não existe mesmo. Confira a grafia da cultura: a busca
+          compara com o nome do MAPA (&ldquo;Pitaya&rdquo;, não &ldquo;pitaia&rdquo;).
+        </Vazio>
+      )}
+
+      {produtos.length > 0 && (
+        <div className={`grid gap-3 md:grid-cols-2 xl:grid-cols-3 ${carregando ? "opacity-60" : ""}`}>
+          {produtos.map((it) => (
+            <CartaoProduto
+              key={it.numero_registro ?? it.nome}
+              aberto={culturas.aberto === it.numero_registro}
+              culturas={it.numero_registro ? culturas.culturas[it.numero_registro] : undefined}
+              aoAlternar={() => culturas.alternar(it.numero_registro)}
+              p={{
+                chave: it.numero_registro ?? it.nome,
+                nome: it.nome,
+                ingrediente: it.ingrediente_ativo,
+                classe: it.classe,
+                biologico: true,
+                organico: it.organico,
+                todasAsCulturas: it.via_todas_as_culturas,
+                registro: it.numero_registro,
+                url: it.url_agrofit,
+                titular: it.titular,
+                toxicologica: it.toxicologica,
+                ambiental: it.ambiental,
+                formulacao: it.formulacao,
+                alvos: dados?.temAlvos ? it.alvos : null,
+                nCulturas: it.n_culturas,
+                modoAcao: it.modo_acao,
+                tecnicaAplicacao: it.tecnica_aplicacao,
+              }}
+            />
+          ))}
         </div>
       )}
 
-      {dados?.aba === "produtos" && produtos.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr style={{ color: "var(--suave)" }}>
-                <Th>Produto</Th>
-                <Th>Ingrediente ativo</Th>
-                <Th>Classe</Th>
-                {dados.temAlvos && <Th>Alvos</Th>}
-                <Th>Registro</Th>
-                <Th>Titular</Th>
-                <Th>Toxicológica</Th>
-                <Th>Ambiental</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {produtos.map((it) => (
-                <Fragment key={it.numero_registro ?? it.nome}>
-                  <tr className="align-top" style={{ borderTop: "1px solid var(--borda)" }}>
-                    <td className="py-2 pr-3">
-                      <span className="font-medium">{it.nome}</span>
-                      {it.via_todas_as_culturas && (
-                        <span
-                          className="ml-2 rounded-full px-2 py-0.5 text-[10px]"
-                          style={{ background: "var(--acento-suave)", color: "var(--acento)" }}
-                        >
-                          todas as culturas
-                        </span>
-                      )}
-                      <span className="block text-xs" style={{ color: "var(--suave)" }}>
-                        {it.formulacao ?? "—"}
-                        {it.organico ? " · uso orgânico" : ""}
-                        {" · "}
-                        <button
-                          onClick={() => alternarCulturas(it.numero_registro)}
-                          className="underline"
-                          style={{ color: "var(--acento)" }}
-                        >
-                          {it.n_culturas} cultura(s)
-                          {aberto === it.numero_registro ? " ▲" : " ▼"}
-                        </button>
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3">{it.ingrediente_ativo ?? "—"}</td>
-                    <td className="py-2 pr-3">{it.classe ?? "—"}</td>
-                    {dados.temAlvos && <td className="py-2 pr-3">{it.alvos ?? "—"}</td>}
-                    <td className="py-2 pr-3 whitespace-nowrap">
-                      {it.url_agrofit ? (
-                        <a
-                          href={it.url_agrofit}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="underline"
-                          style={{ color: "var(--acento)" }}
-                        >
-                          {it.numero_registro}
-                        </a>
-                      ) : (
-                        (it.numero_registro ?? "—")
-                      )}
-                    </td>
-                    <td className="py-2 pr-3">{it.titular ?? "—"}</td>
-                    <td className="py-2 pr-3">{it.toxicologica ?? "—"}</td>
-                    <td className="py-2">{it.ambiental ?? "—"}</td>
-                  </tr>
-                  {aberto === it.numero_registro && (
-                    <tr>
-                      <td colSpan={colunas} className="pb-4">
-                        <div
-                          className="rounded-lg border p-3 text-xs"
-                          style={{ borderColor: "var(--borda)", background: "var(--painel)" }}
-                        >
-                          {!culturas[it.numero_registro!] ? (
-                            <span style={{ color: "var(--suave)" }}>Carregando culturas…</span>
-                          ) : (
-                            <>
-                              <p className="mb-2" style={{ color: "var(--suave)" }}>
-                                Culturas com registro para este produto, e os alvos em cada uma:
-                              </p>
-                              <ul className="grid gap-1 sm:grid-cols-2">
-                                {culturas[it.numero_registro!].map((c) => (
-                                  <li key={c.cultura}>
-                                    <strong>{c.cultura}</strong>
-                                    <span style={{ color: "var(--suave)" }}>
-                                      {c.alvos ? ` — ${c.alvos}` : " — sem alvo específico"}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {it.modo_acao && (
-                                <p className="mt-2" style={{ color: "var(--suave)" }}>
-                                  Modo de ação: {it.modo_acao}
-                                  {it.tecnica_aplicacao ? ` · aplicação: ${it.tecnica_aplicacao}` : ""}
-                                </p>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {dados?.aba === "inoculantes" && inoculantes.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr style={{ color: "var(--suave)" }}>
-                <Th>Registro</Th>
-                <Th>Empresa</Th>
-                <Th>Espécie</Th>
-                <Th>Tipo</Th>
-                <Th>Cultura</Th>
-                <Th>Garantia</Th>
-                <Th>Natureza</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {inoculantes.map((it, i) => (
-                <tr
-                  key={`${it.registro_produto}-${it.cultura}-${i}`}
-                  className="align-top"
-                  style={{ borderTop: "1px solid var(--borda)" }}
-                >
-                  <td className="py-2 pr-3 whitespace-nowrap">
-                    <span className="font-medium">{it.registro_produto ?? "—"}</span>
-                    <span className="block text-xs" style={{ color: "var(--suave)" }}>
-                      {it.uf ?? "—"} · {it.atividade?.toLowerCase() ?? "—"}
-                    </span>
-                  </td>
-                  <td className="py-2 pr-3">{it.razao_social ?? "—"}</td>
-                  <td className="py-2 pr-3 italic">{it.especie ?? "—"}</td>
-                  <td className="py-2 pr-3">{it.tipo ?? "—"}</td>
-                  <td className="py-2 pr-3">
+      {inoculantes.length > 0 && (
+        <div className={`grid gap-3 md:grid-cols-2 xl:grid-cols-3 ${carregando ? "opacity-60" : ""}`}>
+          {inoculantes.map((it, i) => (
+            <article key={`${it.registro_produto}-${it.cultura}-${i}`} className={`${classeCartao} flex flex-col gap-3 p-4`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="text-[17px] leading-snug font-bold italic">{it.especie ?? "Espécie não informada"}</h3>
+                  <p className="mt-0.5 text-sm text-texto-2">{it.razao_social ?? "—"}</p>
+                </div>
+                {it.tipo && <Etiqueta tom="acento">{it.tipo}</Etiqueta>}
+              </div>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-[13px]">
+                <div className="min-w-0">
+                  <dt className="text-suave">Registro</dt>
+                  <dd className="mt-0.5 font-semibold break-words">{it.registro_produto ?? "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-suave">UF · atividade</dt>
+                  <dd className="mt-0.5 font-semibold">
+                    {it.uf ?? "—"} · {it.atividade?.toLowerCase() ?? "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-suave">Cultura</dt>
+                  <dd className="mt-0.5 font-semibold">
                     {it.cultura ?? "—"}
                     {it.cultura_nome_cientifico && (
-                      <span className="block text-xs italic" style={{ color: "var(--suave)" }}>
-                        {it.cultura_nome_cientifico}
-                      </span>
+                      <span className="block font-normal text-suave italic">{it.cultura_nome_cientifico}</span>
                     )}
-                  </td>
-                  <td className="py-2 pr-3">{it.garantia ?? "—"}</td>
-                  <td className="py-2">{it.natureza_fisica ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {dados && dados.paginas > 1 && (
-        <div className="mt-4 flex items-center gap-3 text-sm">
-          <Paginar
-            rotulo="Anterior"
-            ativo={dados.pagina > 1}
-            aoClicar={() => setPagina((p) => p - 1)}
-          />
-          <Paginar
-            rotulo="Próxima"
-            ativo={dados.pagina < dados.paginas}
-            aoClicar={() => setPagina((p) => p + 1)}
-          />
-        </div>
-      )}
-
-      <footer className="mt-8 text-xs" style={{ color: "var(--suave)" }}>
-        Esta lista indica apenas o <strong>registro no MAPA</strong>. Bioinsumo
-        registrado continua sendo defensivo: dose, intervalo de segurança e modo
-        de aplicação constam da bula, e a aquisição e a aplicação exigem
-        receituário agronômico emitido por profissional habilitado. Inoculante é
-        registrado por empresa e cultura — o mesmo produto aparece uma vez para
-        cada cultura em que foi registrado.
-      </footer>
-    </main>
-  );
-}
-
-function Guia(props: { rotulo: string; ativa: boolean; aoClicar: () => void }) {
-  return (
-    <button
-      onClick={props.aoClicar}
-      className="-mb-px border-b-2 px-4 py-2 text-sm transition"
-      style={{
-        borderColor: props.ativa ? "var(--acento)" : "transparent",
-        color: props.ativa ? "var(--acento)" : "var(--suave)",
-        fontWeight: props.ativa ? 500 : 400,
-      }}
-    >
-      {props.rotulo}
-    </button>
-  );
-}
-
-function Campo(props: {
-  rotulo: string;
-  valor: string;
-  aoMudar: (v: string) => void;
-  lista?: string[];
-  listaId?: string;
-  dica?: string;
-}) {
-  return (
-    <label className="block text-sm">
-      <span style={{ color: "var(--suave)" }}>{props.rotulo}</span>
-      <input
-        value={props.valor}
-        onChange={(e) => props.aoMudar(e.target.value)}
-        list={props.lista ? props.listaId : undefined}
-        placeholder={props.dica}
-        className="mt-1 w-full rounded-lg border px-3 py-2 outline-none"
-        style={{
-          borderColor: "var(--borda)",
-          background: "var(--fundo)",
-          color: "var(--texto)",
-        }}
-      />
-      {props.lista && (
-        <datalist id={props.listaId}>
-          {props.lista.map((v) => (
-            <option key={v} value={v} />
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-suave">Garantia</dt>
+                  <dd className="mt-0.5 font-semibold">{it.garantia ?? "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-suave">Natureza</dt>
+                  <dd className="mt-0.5 font-semibold">{it.natureza_fisica ?? "—"}</dd>
+                </div>
+              </dl>
+            </article>
           ))}
-        </datalist>
+        </div>
       )}
-    </label>
-  );
-}
 
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th className="pb-2 pr-3 text-left font-normal" style={{ color: "var(--suave)" }}>
-      {children}
-    </th>
-  );
-}
+      {dados && <Paginacao pagina={dados.pagina} paginas={dados.paginas} aoMudar={setPagina} />}
 
-function Paginar(props: { rotulo: string; ativo: boolean; aoClicar: () => void }) {
-  return (
-    <button
-      onClick={props.aoClicar}
-      disabled={!props.ativo}
-      className="rounded-lg border px-3 py-1 disabled:opacity-40"
-      style={{ borderColor: "var(--borda)" }}
-    >
-      {props.rotulo}
-    </button>
+      <p className="text-xs leading-snug text-suave">
+        Inoculante é registrado por empresa e cultura — o mesmo produto aparece uma vez para cada
+        cultura em que foi registrado.
+      </p>
+    </main>
   );
 }
