@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   // esta flag faz o build chamar o CLI do tsc.
   experimental: {
     useTypeScriptCli: true,
+    proxyClientMaxBodySize: "21mb",
   },
 };
 

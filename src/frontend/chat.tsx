@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usarDitado } from "./usar-ditado";
 import { usarPropriedade, type Fonte } from "./dados";
 import { IconeMicrofone, IconeMicrofoneBloqueado } from "./icones";
 import { Icone, Logo, type NomeIcone } from "./ui";
+import {
+  MAX_FOLHA_BYTES,
+  PERGUNTA_PADRAO_FOLHA,
+  TIPOS_IMAGEM_FOLHA,
+  type LeafInference,
+} from "@/shared/classificador-folha";
 
 type Msg = {
   role: "user" | "assistant";
   content: string;
   sources?: Fonte[];
+  leafInference?: LeafInference;
   erro?: boolean;
 };
 
@@ -42,10 +49,22 @@ export default function Chat() {
   const [abrindo, setAbrindo] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [modelo, setModelo] = useState<string | null>(null);
+  const [foto, setFoto] = useState<File | null>(null);
+  const [erroFoto, setErroFoto] = useState<string | null>(null);
   const { propriedade } = usarPropriedade();
   const fim = useRef<HTMLDivElement>(null);
   const campo = useRef<HTMLTextAreaElement>(null);
+  const seletorFoto = useRef<HTMLInputElement>(null);
+  const envioAtivo = useRef(false);
   const perguntaEnviada = useRef<string | null>(null);
+  const tiposAceitos = TIPOS_IMAGEM_FOLHA.join(",");
+  const fotoUrl = useMemo(() => (foto ? URL.createObjectURL(foto) : null), [foto]);
+  useEffect(
+    () => () => {
+      if (fotoUrl) URL.revokeObjectURL(fotoUrl);
+    },
+    [fotoUrl],
+  );
 
   // O ditado acrescenta ao que já está escrito em vez de substituir: o produtor
   // pode digitar, ditar o complemento e revisar antes de enviar.
@@ -64,6 +83,9 @@ export default function Chat() {
   // Abre a conversa pedida na URL (vinda do histórico).
   useEffect(() => {
     if (!idNaUrl || idNaUrl === conversationId) return;
+    setFoto(null);
+    setErroFoto(null);
+    setInput("");
     setAbrindo(true);
     fetch(`/api/conversas/${idNaUrl}`)
       .then(async (r) => {
@@ -100,31 +122,59 @@ export default function Chat() {
   }, [input]);
 
   const enviar = useCallback(
-    async (texto: string) => {
-      const pergunta = texto.trim();
-      if (!pergunta || carregando) return;
+    async (texto: string, imagem?: File | null) => {
+      const perguntaDigitada = texto.trim();
+      const pergunta = perguntaDigitada || (imagem ? PERGUNTA_PADRAO_FOLHA : "");
+      if ((!pergunta && !imagem) || carregando || envioAtivo.current) return;
+      envioAtivo.current = true;
 
       setMsgs((m) => [...m, { role: "user", content: pergunta }]);
-      setInput("");
       setCarregando(true);
       if (!conversationId) setTitulo(pergunta.length > 60 ? `${pergunta.slice(0, 57)}…` : pergunta);
 
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        let headers: HeadersInit | undefined;
+        let body: BodyInit;
+        if (imagem) {
+          const formulario = new FormData();
+          formulario.append("image", imagem, imagem.name);
+          formulario.append("message", pergunta);
+          if (conversationId) formulario.append("conversationId", conversationId);
+          if (propriedade?.id) formulario.append("propertyId", propriedade.id);
+          body = formulario;
+        } else {
+          headers = { "Content-Type": "application/json" };
+          body = JSON.stringify({
             message: pergunta,
             conversationId,
             propertyId: propriedade?.id,
-          }),
+          });
+        }
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          ...(headers ? { headers } : {}),
+          body,
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Falha na requisição");
         setConversationId(data.conversationId);
+        setInput("");
+        setFoto(null);
+        setErroFoto(null);
         // A URL passa a apontar para a conversa: recarregar não a perde.
         router.replace(`/chat?id=${data.conversationId}`, { scroll: false });
-        setMsgs((m) => [...m, { role: "assistant", content: data.text, sources: data.sources }]);
+        setMsgs((m) => [
+          ...m.slice(0, -1),
+          {
+            ...m[m.length - 1],
+            ...(data.leafInference ? { leafInference: data.leafInference as LeafInference } : {}),
+          },
+          {
+            role: "assistant",
+            content: data.text,
+            sources: data.sources,
+          },
+        ]);
       } catch (err) {
         setMsgs((m) => [
           ...m,
@@ -135,6 +185,7 @@ export default function Chat() {
           },
         ]);
       } finally {
+        envioAtivo.current = false;
         setCarregando(false);
       }
     },
@@ -154,6 +205,8 @@ export default function Chat() {
     setConversationId(undefined);
     setMsgs([]);
     setInput("");
+    setFoto(null);
+    setErroFoto(null);
     setTitulo("Nova conversa");
     perguntaEnviada.current = null;
     router.replace("/chat", { scroll: false });
@@ -199,7 +252,8 @@ export default function Chat() {
           onClick={novaConversa}
           aria-label="Nova conversa"
           title="Nova conversa"
-          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-painel"
+          disabled={carregando}
+          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-painel disabled:opacity-40"
         >
           <Icone nome="lapis" className="h-[21px] w-[21px]" />
         </button>
@@ -222,7 +276,7 @@ export default function Chat() {
                 <li key={s}>
                   <button
                     type="button"
-                    onClick={() => enviar(s)}
+                    onClick={() => enviar(s, foto)}
                     className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-borda bg-painel px-4 py-2 text-left text-[15px] transition hover:border-suave"
                   >
                     <Icone nome="brilho" className="h-[18px] w-[18px] text-acento" />
@@ -254,6 +308,7 @@ export default function Chat() {
               className="max-w-[85%] self-end rounded-[20px] rounded-br-md bg-acento px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap text-white"
             >
               {m.content}
+              {m.leafInference && <CartaoFolha analise={m.leafInference} />}
             </div>
           ) : (
             <article key={i} className="flex flex-col gap-2">
@@ -280,7 +335,7 @@ export default function Chat() {
               <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-marca-texto [animation-delay:150ms]" />
               <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-marca-texto [animation-delay:300ms]" />
             </span>
-            Consultando as fontes…
+            {foto ? "Analisando a foto e preparando a resposta…" : "Consultando as fontes…"}
           </div>
         )}
         <div ref={fim} />
@@ -301,10 +356,47 @@ export default function Chat() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              enviar(input);
+              enviar(input, foto);
             }}
-            className="flex items-end gap-1.5 rounded-3xl border-[1.5px] border-borda bg-painel p-1.5 focus-within:border-marca-texto"
+            className="flex flex-col gap-1.5 rounded-3xl border-[1.5px] border-borda bg-painel p-1.5 focus-within:border-marca-texto"
           >
+            {foto && (
+              <div className="flex items-center gap-3 rounded-2xl border border-borda bg-fundo p-2">
+                {fotoUrl && foto.type !== "image/tiff" ? (
+                  <img
+                    src={fotoUrl}
+                    alt="Prévia da folha selecionada"
+                    className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                  />
+                ) : (
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-marca-suave text-marca-texto">
+                    <Icone nome="broto" className="h-7 w-7" />
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-suave">Analisar folha</span>
+                  <span className="block truncate text-sm" title={foto.name}>{foto.name}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFoto(null);
+                    setErroFoto(null);
+                    if (seletorFoto.current) seletorFoto.current.value = "";
+                  }}
+                  disabled={carregando}
+                  aria-label="Remover foto"
+                  title="Remover foto"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-suave hover:bg-painel disabled:opacity-40"
+                >
+                  <Icone nome="x" className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+
+            {erroFoto && <p className="px-3 text-sm text-acento-texto" role="alert">{erroFoto}</p>}
+
+            <div className="flex items-end gap-1.5">
             <label htmlFor="pergunta" className="sr-only">
               Sua pergunta
             </label>
@@ -314,16 +406,57 @@ export default function Chat() {
               rows={1}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              disabled={carregando}
               onKeyDown={(e) => {
                 // Enter envia; Shift+Enter quebra a linha.
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  enviar(input);
+                  enviar(input, foto);
                 }
               }}
               placeholder="Pergunte sobre o manejo…"
               className="max-h-[140px] min-h-11 flex-1 resize-none bg-transparent py-2.5 pr-2 pl-3 text-base leading-6 outline-none md:text-[15px] placeholder:text-suave"
             />
+
+            <input
+              ref={seletorFoto}
+              type="file"
+              accept={tiposAceitos}
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Escolher foto da folha"
+              onChange={(e) => {
+                const selecionada = e.currentTarget.files?.[0];
+                e.currentTarget.value = "";
+                setErroFoto(null);
+                if (!selecionada) return;
+                const tipo = selecionada.type.toLowerCase();
+                if (!tipo.startsWith("image/") || !(TIPOS_IMAGEM_FOLHA as readonly string[]).includes(tipo)) {
+                  setErroFoto("Formato não aceito. Envie uma foto JPEG, PNG, WebP, BMP ou TIFF.");
+                  return;
+                }
+                if (selecionada.size === 0) {
+                  setErroFoto("A foto está vazia. Escolha outra imagem.");
+                  return;
+                }
+                if (selecionada.size > MAX_FOLHA_BYTES) {
+                  setErroFoto("A foto excede o limite de 20 MiB.");
+                  return;
+                }
+                setFoto(selecionada);
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => seletorFoto.current?.click()}
+              disabled={carregando}
+              aria-label={foto ? "Trocar foto da folha" : "Analisar folha"}
+              title={foto ? "Trocar foto da folha" : "Analisar folha"}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-fundo text-marca-texto disabled:opacity-40"
+            >
+              <Icone nome="broto" className="h-5 w-5" />
+            </button>
 
             {ditado.suportado && (
               <button
@@ -351,12 +484,14 @@ export default function Chat() {
 
             <button
               type="submit"
-              disabled={carregando || !input.trim()}
-              aria-label="Enviar pergunta"
+              disabled={carregando || (!input.trim() && !foto)}
+              aria-label={foto ? "Analisar foto e enviar pergunta" : "Enviar pergunta"}
+              title={foto ? "Analisar foto e enviar pergunta" : "Enviar pergunta"}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-acento text-white disabled:opacity-40"
             >
               <Icone nome="enviar" className="h-5 w-5" strokeWidth={2.2} />
             </button>
+            </div>
           </form>
           <p className="mt-2 text-center text-xs text-suave">
             Registro no MAPA não substitui o receituário agronômico.
@@ -380,8 +515,8 @@ function Fontes({ fontes }: { fontes?: Fonte[] }) {
       <div className="mt-3 flex gap-2 rounded-xl bg-alerta-suave px-3 py-2.5 text-[13px] leading-snug text-alerta-texto">
         <Icone nome="triangulo" className="mt-px h-4 w-4" />
         <span>
-          <strong>Nenhuma fonte consultada.</strong> Resposta de conhecimento geral, não verificada
-          na base técnica.
+          <strong>Nenhuma fonte técnica consultada.</strong> Orientação de manejo não verificada na
+          base técnica.
         </span>
       </div>
     );
@@ -405,5 +540,29 @@ function Fontes({ fontes }: { fontes?: Fonte[] }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+function CartaoFolha({ analise }: { analise: LeafInference }) {
+  return (
+    <figure className="mt-3 rounded-2xl border border-white/30 bg-black/10 px-3.5 py-3 text-sm">
+      <figcaption className="flex items-center gap-1.5 text-xs font-bold">
+        <Icone nome="broto" className="h-4 w-4" />
+        Resultado do classificador · {analise.nomeArquivo}
+      </figcaption>
+      <p className="mt-2 font-bold">{analise.classe} · {(analise.confianca * 100).toFixed(1)}%</p>
+      <p className="mt-2 text-xs font-bold">Pontuação do modelo</p>
+      <ul className="mt-1 space-y-0.5 text-xs" aria-label="Três principais pontuações do modelo">
+        {analise.top_3.map((candidato) => (
+          <li key={candidato.classe} className="flex justify-between gap-3">
+            <span>{candidato.classe}</span>
+            <span className="tabular-nums">{(candidato.probabilidade * 100).toFixed(1)}%</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs leading-snug opacity-80">
+        Sugestão automática, não é um diagnóstico. Confirme com orientação técnica.
+      </p>
+    </figure>
   );
 }

@@ -16,6 +16,7 @@ técnico, sempre citando a fonte que usou.
 - **Cadastrar a chave do OpenRouter:** [docs/08-openrouter.md](docs/08-openrouter.md)
 - **Ditado por voz no chat:** [docs/09-ditado-por-voz.md](docs/09-ditado-por-voz.md)
 - **Cadastrar a chave da NVIDIA (gratuita):** [docs/10-nvidia.md](docs/10-nvidia.md)
+- **Analisar fotos de cladódios:** [docs/12-classificador-folha.md](docs/12-classificador-folha.md)
 
 ## Como rodar
 

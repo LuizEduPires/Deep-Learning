@@ -12,12 +12,29 @@ openssl rand -hex 24
 docker compose up -d --build
 ```
 
-Abra `http://localhost:3000`. O Compose inicia PostgreSQL com pgvector, aplica
-as migrações, carrega `data/conhecimento/*.md` quando o conteúdo muda e só então
-inicia o servidor. Confira com `docker compose ps` e
+Abra `http://localhost:3000`. O Compose inicia PostgreSQL com pgvector e o
+classificador local de cladódios, aplica as migrações, carrega
+`data/conhecimento/*.md` quando o conteúdo muda e só então inicia o servidor.
+Confira com `docker compose ps` e
 `docker compose logs -f init app gateway egress-proxy`. A rota `/api/health`
 verifica a conexão com o banco. Os dados ficam no volume `pitaya-pgdata`;
 `docker compose down` não o remove. O banco e o app não publicam portas no host.
+
+O serviço `classificador-folha` usa ONNX Runtime com CPU. Ele só participa da
+rede interna `pitaya`, não publica porta e não passa pelo proxy de saída. O app
+o chama em `http://classificador-folha:8080`. Ao executar `npm run dev` fora do
+Compose, a URL padrão é `http://127.0.0.1:8080`; inicie o contêiner do
+classificador separadamente ou ajuste `CLASSIFICADOR_FOLHA_URL` no `.env`.
+Se o classificador estiver indisponível, mensagens textuais seguem funcionando;
+uma pergunta com foto recebe um erro recuperável.
+
+O chat aceita uma foto JPEG, PNG, WebP, BMP ou TIFF por mensagem, até **20 MiB**
+(o formulário inteiro pode ocupar até **21 MiB**). Ambos os gateways aplicam
+esses limites; os uploads do chat passam diretamente ao app sem o gateway
+guardar o corpo da imagem. A aplicação também rejeita corpos maiores antes de
+analisar o formulário. Após a inferência, somente o nome do arquivo e o
+resultado validado são salvos no histórico. Veja
+[`12-classificador-folha.md`](12-classificador-folha.md).
 
 A rede Docker `pitaya` usa `internal: true` e modo de gateway `isolated` (Docker
 Engine **28+**). Banco, app e inicializador só entram em redes internas. O

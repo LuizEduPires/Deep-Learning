@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { responderNaConversa } from "@/server/conversas";
+import { lerCorpoChat, ErroEntradaChat } from "@/server/chat-http";
+import { ErroClassificadorFolha } from "@/server/classificador-folha";
 import { lerConfigLlm } from "@/server/llm/config";
 import { descreveFalhaDeLlm } from "@/server/llm/erros";
 
@@ -9,26 +10,28 @@ export const maxDuration = 120;
 
 /** Adaptador HTTP: valida a entrada e delega para src/server/conversas.ts. */
 
-const Body = z.object({
-  conversationId: z.string().uuid().optional(),
-  propertyId: z.string().uuid().optional(),
-  message: z.string().min(1).max(4000),
-});
-
 export async function POST(request: Request) {
   let parsed;
   try {
-    parsed = Body.parse(await request.json());
-  } catch {
+    parsed = await lerCorpoChat(request);
+  } catch (err) {
     return NextResponse.json(
-      { error: "Requisição inválida. Envie { message: string }." },
-      { status: 400 },
+      {
+        error:
+          err instanceof ErroEntradaChat
+            ? err.message
+            : "Requisição inválida. Envie { message: string }.",
+      },
+      { status: err instanceof ErroEntradaChat ? err.status : 400 },
     );
   }
 
   try {
     return NextResponse.json(await responderNaConversa(parsed));
   } catch (err) {
+    if (err instanceof ErroClassificadorFolha) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Erro no chat:", msg);
     // Falha de provedor é de configuração: vale uma mensagem acionável em vez

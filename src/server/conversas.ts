@@ -1,13 +1,19 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { responder } from "./agent";
+import {
+  classificarImagemFolha,
+  type FotoDeFolha,
+} from "./classificador-folha";
 import { db, schema } from "./db";
-import type { ChatMessage, Source } from "./llm/types";
+import { montarMensagensDoChat } from "./mensagens-chat";
+import type { Source } from "./llm/types";
 import { usuarioDemo } from "./usuarios";
 
 export interface PerguntaDoChat {
   conversationId?: string;
   propertyId?: string;
   message: string;
+  foto?: FotoDeFolha;
 }
 
 /** Título da conversa: a primeira pergunta, cortada no limite da lista. */
@@ -32,6 +38,9 @@ function tituloDe(mensagem: string) {
  */
 export async function responderNaConversa(pergunta: PerguntaDoChat) {
   const user = await usuarioDemo();
+  const analise = pergunta.foto
+    ? await classificarImagemFolha(pergunta.foto)
+    : undefined;
 
   const historico = pergunta.conversationId
     ? await db
@@ -57,13 +66,7 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
           .limit(1)
       )[0];
 
-  const messages: ChatMessage[] = [
-    ...historico.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-    { role: "user", content: pergunta.message },
-  ];
+  const messages = montarMensagensDoChat(historico, pergunta.message, analise);
 
   const resposta = await responder({
     messages,
@@ -93,7 +96,12 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
   }
 
   await db.insert(schema.messages).values([
-    { conversationId, role: "user", content: pergunta.message },
+    {
+      conversationId,
+      role: "user",
+      content: pergunta.message,
+      ...(analise ? { leafInference: analise } : {}),
+    },
     {
       conversationId,
       role: "assistant",
@@ -102,7 +110,16 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
     },
   ]);
 
-  return { conversationId, text: resposta.text, sources: resposta.sources };
+  if (!analise) {
+    return { conversationId, text: resposta.text, sources: resposta.sources };
+  }
+
+  return {
+    conversationId,
+    text: resposta.text,
+    sources: resposta.sources,
+    leafInference: analise,
+  };
 }
 
 /**
@@ -175,6 +192,7 @@ export async function abrirConversa(id: string) {
       role: m.role as "user" | "assistant",
       content: m.content,
       sources: (m.sources as Source[] | null) ?? undefined,
+      leafInference: m.leafInference ?? undefined,
     })),
   };
 }
