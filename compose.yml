@@ -31,6 +31,12 @@ services:
       retries: 6
     restart: unless-stopped
 
+  classificador-folha:
+    build: ./deploy/classificador-folha
+    networks:
+      - pitaya
+    restart: unless-stopped
+
   init:
     build:
       context: .
@@ -44,10 +50,10 @@ services:
       NODE_USE_ENV_PROXY: "1"
       HTTP_PROXY: http://egress-proxy:3128
       HTTPS_PROXY: http://egress-proxy:3128
-      NO_PROXY: localhost,127.0.0.1,db,app
+      NO_PROXY: localhost,127.0.0.1,db,app,classificador-folha
       http_proxy: http://egress-proxy:3128
       https_proxy: http://egress-proxy:3128
-      no_proxy: localhost,127.0.0.1,db,app
+      no_proxy: localhost,127.0.0.1,db,app,classificador-folha
     command: ["sh", "-c", "npm run db:migrate && npm run db:seed -- --if-changed"]
     depends_on:
       db:
@@ -70,10 +76,11 @@ services:
       NODE_USE_ENV_PROXY: "1"
       HTTP_PROXY: http://egress-proxy:3128
       HTTPS_PROXY: http://egress-proxy:3128
-      NO_PROXY: localhost,127.0.0.1,db,app
+      NO_PROXY: localhost,127.0.0.1,db,app,classificador-folha
+      CLASSIFICADOR_FOLHA_URL: ${CLASSIFICADOR_FOLHA_URL:-http://classificador-folha:8080}
       http_proxy: http://egress-proxy:3128
       https_proxy: http://egress-proxy:3128
-      no_proxy: localhost,127.0.0.1,db,app
+      no_proxy: localhost,127.0.0.1,db,app,classificador-folha
     depends_on:
       init:
         condition: service_completed_successfully

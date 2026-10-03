@@ -1,0 +1,126 @@
+{
+  "model": "MobileNetV3-Small",
+  "language": "pt-BR",
+  "input": {
+    "shape": [
+      1,
+      3,
+      224,
+      224
+    ],
+    "dtype": "float32",
+    "color": "RGB",
+    "resize": [
+      224,
+      224
+    ],
+    "normalization": {
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    }
+  },
+  "output": {
+    "shape": [
+      1,
+      10
+    ],
+    "dtype": "float32",
+    "meaning": "logits; aplique softmax para obter probabilidades"
+  },
+  "classes": [
+    {
+      "index": 0,
+      "label": "Antracnose",
+      "source_labels": [
+        "Anthracnose"
+      ]
+    },
+    {
+      "index": 1,
+      "label": "Cancro do caule",
+      "source_labels": [
+        "Stem_Canker"
+      ]
+    },
+    {
+      "index": 2,
+      "label": "Mancha branca",
+      "source_labels": [
+        "White Spot"
+      ]
+    },
+    {
+      "index": 3,
+      "label": "Mancha-marrom",
+      "source_labels": [
+        "Brown Spot",
+        "Brown Stem Spot"
+      ]
+    },
+    {
+      "index": 4,
+      "label": "Mancha preta",
+      "source_labels": [
+        "Black Spot"
+      ]
+    },
+    {
+      "index": 5,
+      "label": "Podridão da raiz",
+      "source_labels": [
+        "Root Rot"
+      ]
+    },
+    {
+      "index": 6,
+      "label": "Podridão do caule",
+      "source_labels": [
+        "Stem Rot"
+      ]
+    },
+    {
+      "index": 7,
+      "label": "Podridão mole",
+      "source_labels": [
+        "Soft Rot",
+        "Soft_Rot"
+      ]
+    },
+    {
+      "index": 8,
+      "label": "Queima dos ramos",
+      "source_labels": [
+        "Twig Blight",
+        "Gray Blight"
+      ]
+    },
+    {
+      "index": 9,
+      "label": "Saudável",
+      "source_labels": [
+        "Healthy"
+      ]
+    }
+  ],
+  "taxonomy_note": "Brown Stem Spot foi consolidada em Mancha-marrom e Gray Blight em Queima dos ramos para manter nove doenças e Saudável. O agrupamento de rótulos não confirma equivalência etiológica.",
+  "data_policy": {
+    "included": [
+      "Folha/",
+      "Dragon Fruit (Pitahaya)/Original Images/"
+    ],
+    "ignored": [
+      "Dragon Fruit (Pitahaya)/Converted Images/",
+      "Dragon Fruit (Pitahaya)/Annotated Files/",
+      "arquivos Folha/*/aug_* pré-gerados"
+    ],
+    "split": "70/15/15 por grupo de origem, seed 42"
+  }
+}

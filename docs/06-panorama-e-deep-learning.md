@@ -1,8 +1,8 @@
 # Panorama técnico e caminho de deep learning
 
 > Retrato do que o projeto é hoje — linguagem, estrutura, arquitetura e escopo
-> entregue — seguido das duas frentes de deep learning escolhidas para a
-> próxima fase: **casamento semântico de vocabulário** e **visão computacional**.
+> entregue — seguido do estado atual e dos próximos passos em **casamento
+> semântico de vocabulário** e **visão computacional**.
 >
 > Complementa, não substitui: [00-handoff-produto.md](00-handoff-produto.md) é a
 > decisão de produto, [01-arquitetura-dados.md](01-arquitetura-dados.md) o
@@ -227,21 +227,21 @@ qualidade de recuperação, e esse custo é um dos motivos da Escolha A adiante.
 | Base de conhecimento | 13 arquivos, ~1.900 linhas — os seis originais de partida mais material convertido de PDF (cartilhas, boletins e um livro sobre pitaya) |
 | Agrofit | sincronizado do dump/API, com vocabulário canônico (culturas, pragas, ingredientes, titulares) |
 | Bioinsumos | coleção normalizada + payload cru |
-| Fotos de campo | **não existe** — o produto é 100% texto hoje |
+| Fotos de campo | analisadas temporariamente pelo classificador; as fotos e rótulos técnicos não são guardados. O histórico mantém somente o resultado e o nome do arquivo |
 
 ---
 
 ## 6. Onde o deep learning já está — e onde não está
 
-Duas peças do produto já são deep learning, ambas consumidas por API: o **LLM**
-e os **embeddings** (`text-embedding-3-small`, um transformer). Nenhum modelo é
-do projeto.
+O produto usa um **LLM** e embeddings (`text-embedding-3-small`) por API. Para
+fotos de cladódios, usa também um classificador MobileNetV3-Small próprio,
+empacotado em ONNX e executado por CPU num serviço Python privado.
 
 O handoff colocou **fine-tuning no não-escopo**, com a justificativa "RAG
 resolve". Está correto: fine-tunar LLM para injetar conhecimento é caro,
 desatualiza e apaga a rastreabilidade da fonte — que aqui é requisito, não
-enfeite. As duas frentes abaixo **não tocam no LLM**, e por isso não conflitam
-com aquela decisão.
+enfeite. A classificação visual entrega ao LLM apenas texto: o modelo de
+linguagem não recebe a imagem e não precisa ter capacidade visual.
 
 ---
 
@@ -326,60 +326,51 @@ quantos "nenhum resultado" viram resposta correta.
 
 ---
 
-## 8. Escolha B — Visão computacional
+## 8. Visão computacional para folhas (classificador entregue)
 
-**O salto de produto. Começa sem treinar nada e constrói o próprio dataset.**
+**Um fluxo de análise local, com resultado textual para o LLM.**
 
 ### Por que
 
-O chat é 100% texto, e é exatamente aí que ele deixa o produtor na mão: ele está
-no campo, com uma mancha no cladódio e um celular na mão. Antracnose, podridão
-de cladódio, mancha bacteriana e escaldadura de sol se distinguem mal por
-descrição verbal e bem por imagem — descrever "mancha marrom com halo amarelo"
-é onde a busca textual erra o alvo.
+Antes da integração de fotos, o chat recebia apenas texto; o produtor precisava
+descrever a mancha no cladódio. Antracnose, podridão, manchas bacterianas e
+escaldadura de sol podem se distinguir mal por descrição verbal. O classificador
+MobileNetV3-Small agora recebe uma foto diretamente e fornece as três classes
+mais prováveis. O resultado segue para o LLM como texto para manter compatibilidade
+com provedores que não aceitam imagens; o LLM recebe a sugestão, não a foto.
 
-Do diagnóstico em diante, **o produto já está pronto**: termo técnico →
-`busca_conhecimento` + `consulta_agrofit` → produto registrado com o aviso de
-receituário.
+As pontuações são saídas softmax entre as dez classes treinadas, não probabilidades
+calibradas de diagnóstico nem avaliação da severidade. O agente as apresenta como
+hipótese e consulta a base técnica antes de orientar o manejo. O histórico mantém
+o resultado textual e o nome do arquivo, não os bytes da foto. Detalhes de uso em
+[12-classificador-folha.md](12-classificador-folha.md).
+
+Para orientar o manejo com a hipótese classificada, o agente pode consultar
+`busca_conhecimento` e `consulta_agrofit`; recomendações de produtos registrados
+continuam acompanhadas do aviso de receituário.
 
 ```mermaid
 flowchart LR
-    F[Foto do celular] --> V[analisar_foto]
-    V --> H[Hipóteses + confiança]
-    H --> BC[busca_conhecimento]
-    H --> CA[consulta_agrofit]
-    BC --> R[Resposta com fonte<br/>+ aviso de receituário]
-    CA --> R
-    H --> L[(Rótulo do técnico<br/>vira dataset)]
+    F[Foto do celular] --> V[Serviço local MobileNetV3-Small]
+    V --> H[Classe líder + três pontuações]
+    Q[Pergunta do produtor] --> L[LLM recebe texto, sem imagem]
+    H --> L
+    L --> BC[busca_conhecimento e ferramentas pertinentes]
+    BC --> R[Resposta com fonte técnica quando consultada]
 ```
 
-### Estágio 0 — multimodal, sem modelo próprio
+### Primeiro desenho — resultado visual como contexto textual
 
-Claude e GPT já aceitam imagem, e a abstração de provedor em `src/server/llm/`
-já está no lugar. Uma tool `analisar_foto` entra sem treinar nada e sem GPU.
+O chat chama o serviço local durante o envio e inclui classe líder e as três
+pontuações na mensagem textual entregue ao LLM. O resultado e o nome do arquivo
+são salvos com a mensagem do usuário para perguntas futuras; os bytes da foto
+são descartados. O MVP não coleta confirmação técnica nem monta um dataset
+rotulado.
 
-O ponto que decide o futuro da frente: **cada foto enviada, mais a confirmação
-do técnico, é um par rotulado**. Guardar isso desde o primeiro dia é o que torna
-o Estágio 1 possível — e é barato agora, caro depois.
+### Próximo estágio — avaliar outro modelo visual
 
-```sql
-CREATE TABLE fotos (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  message_id   uuid REFERENCES messages(id) ON DELETE SET NULL,
-  property_id  uuid REFERENCES properties(id) ON DELETE SET NULL,
-  caminho      text NOT NULL,
-  tirada_em    timestamptz,
-  hipoteses    jsonb,      -- saída do modelo: [{classe, confianca}]
-  rotulo       text,       -- verdade confirmada pelo técnico
-  rotulado_por uuid REFERENCES users(id),
-  rotulado_em  timestamptz,
-  created_at   timestamptz NOT NULL DEFAULT now()
-);
-```
-
-### Estágio 1 — classificador próprio
-
-Quando houver volume (~200–300 fotos por classe), backbone pré-treinado
+Um próximo estágio, caso se decida coletar imagens com consentimento e rótulos
+técnicos, pode avaliar outro modelo quando houver volume (~200–300 fotos por classe), backbone pré-treinado
 congelado (**DINOv2** ou **ConvNeXt**) + *linear probe* sobre os embeddings de
 imagem. Treino em minutos, roda em CPU na inferência, auditável, e sem custo por
 chamada.
@@ -390,11 +381,9 @@ bacteriana · escaldadura/queima de sol · deficiência nutricional · **sadio**
 O que **não** fazer: treinar CNN do zero ou fine-tunar o backbone inteiro com
 esse volume — decora o conjunto e não generaliza.
 
-**Nota de arquitetura:** este é o primeiro componente que não cabe em
-TypeScript. A forma limpa é um serviço Python isolado (FastAPI) que o BFF chama
-por HTTP, como já faz com Open-Meteo e AgroAPI — não tentar rodar torch em Node.
-O Estágio 0 não tem esse custo; ele só aparece no Estágio 1, e é uma boa razão
-para não antecipá-lo.
+**Nota de arquitetura:** o classificador já roda como serviço Python isolado
+na rede privada do Compose e usa ONNX Runtime com CPU. O chat mantém texto
+disponível quando esse serviço cai; somente pedidos com foto falham.
 
 ### Métrica correta
 
@@ -410,10 +399,11 @@ importa:
 
 ### Limites que ficam valendo
 
-A tool sugere hipótese, **não diagnostica**. Confiança baixa vira "leve isso a
-um agrônomo", e toda menção a defensivo continua passando pelo aviso de
-receituário do system prompt. Nada disso muda com a foto — a foto só melhora a
-pergunta que chega às outras tools.
+O classificador sugere hipótese, **não diagnostica**. As pontuações não são
+calibradas e não há limiar automático de confiança; o agente deve consultar as
+ferramentas técnicas disponíveis e recomendar confirmação profissional quando
+necessário. Toda menção a defensivo continua passando pelo aviso de receituário
+do system prompt.
 
 ### Isto contradiz o não-escopo?
 
@@ -439,16 +429,14 @@ destas duas.
 
 ## 9. Ordem sugerida
 
-| # | Frente | Esforço | Destrava |
+| Estado | Frente | Esforço / condição | Destrava |
 | --- | --- | --- | --- |
-| 1 | Casamento semântico de vocabulário | dias | conserta o "não há produto" falso; infra já existe |
-| 2 | Visão — Estágio 0 (multimodal + coleta de rótulo) | semanas | abre o caso de uso novo **e** constrói o dataset |
-| 3 | Visão — Estágio 1 (classificador próprio) | quando houver ~1.000 fotos rotuladas | tira custo por chamada, ganha precisão no domínio |
+| entregue | Classificador ONNX local | concluído | sugere até três classes sem enviar foto ao LLM |
+| próximo | Casamento semântico de vocabulário | dias; infra existente | reduz buscas incorretas por termos do MAPA |
+| futuro | Avaliar outro modelo visual | depende de imagens e rótulos técnicos suficientes | medir eventual ganho de precisão no domínio |
 
-A ordem não é arbitrária: a Escolha A rende valor imediato com risco quase nulo,
-e o Estágio 0 da Escolha B precisa começar cedo **porque o dataset leva tempo
-para existir** — cada semana sem coletar rótulo é uma semana empurrando o
-Estágio 1 para frente.
+A coleta de imagens rotuladas exigiria uma decisão de produto e privacidade;
+ela não faz parte do fluxo entregue, que descarta as fotos após a inferência.
 
 ## 10. O que fica de fora, e por quê
 

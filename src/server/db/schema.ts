@@ -13,6 +13,7 @@ import {
   unique,
   customType,
 } from "drizzle-orm/pg-core";
+import type { LeafInference } from "../classificador-folha";
 
 const vector1536 = customType<{ data: number[]; driverData: string }>({
   dataType() {
@@ -61,6 +62,7 @@ export const messages = pgTable("messages", {
   role: text("role", { enum: ["user", "assistant"] }).notNull(),
   content: text("content").notNull(),
   sources: jsonb("sources"),
+  leafInference: jsonb("leaf_inference").$type<LeafInference>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

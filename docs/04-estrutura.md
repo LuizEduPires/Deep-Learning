@@ -101,8 +101,8 @@ mudar um campo, só `api.ts` muda.
 
 As migrações são **escritas à mão** e aplicadas por `scripts/migrate.ts` na
 ordem do nome do arquivo — hoje `0000_init`, `0001_agrofit_api`,
-`0002_bioinsumos`, `0003_unaccent` e `0004_configuracoes`. Todas usam
-`IF NOT EXISTS`, então rodar de novo é seguro. O `out` do drizzle-kit aponta para `banco/_gerado`
+`0002_bioinsumos`, `0003_unaccent`, `0004_configuracoes` e `0005_leaf_inference`.
+Todas usam `IF NOT EXISTS`, então rodar de novo é seguro. O `out` do drizzle-kit aponta para `banco/_gerado`
 (ignorado no git) justamente para que um `drizzle-kit generate` acidental não
 sobrescreva nem renumere o que já rodou.
 
@@ -154,6 +154,7 @@ esse caminho, como as páginas em `src/app`.
 | [08-openrouter.md](08-openrouter.md) | cadastrar a chave do OpenRouter |
 | [09-ditado-por-voz.md](09-ditado-por-voz.md) | ditado por voz no chat |
 | [10-nvidia.md](10-nvidia.md) | cadastrar a chave gratuita da NVIDIA |
+| [12-classificador-folha.md](12-classificador-folha.md) | enviar fotos ao classificador local de cladódios |
 
 ## Onde mexer
 

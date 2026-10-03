@@ -12,7 +12,7 @@ Base local: `http://localhost:3000`.
 Uma rodada de conversa com o agente. É a única rota que consome LLM.
 
 ```jsonc
-// requisição
+// JSON — contrato textual existente
 {
   "message": "Qual produto é registrado para antracnose em pitaya?",
   "conversationId": "uuid",   // opcional — sem ele, abre uma conversa nova
@@ -20,17 +20,45 @@ Uma rodada de conversa com o agente. É a única rota que consome LLM.
 }
 ```
 
+Para analisar uma foto, envie `multipart/form-data` à mesma rota com um campo
+`image` (exatamente um JPEG, PNG, WebP, BMP ou TIFF de até **20 MiB**), mais
+`message` opcional, `conversationId` e `propertyId` opcionais. O envio inteiro,
+incluindo os campos do formulário, tem limite de **21 MiB** antes do parser
+multipart. O serviço também limita a imagem a **40 megapixels**. Sem pergunta,
+o texto usado é "Analise esta folha de pitaya e explique o resultado.". A
+inferência é feita pelo serviço ONNX local; os bytes não vão ao provedor de LLM
+nem são armazenados no histórico.
+
 ```jsonc
 // 200
 { "conversationId": "uuid", "text": "…", "sources": [ … ] }
+
+// 200 com foto: os valores também são salvos com a mensagem do usuário
+{
+  "conversationId": "uuid",
+  "text": "…",
+  "sources": [ … ],
+  "leafInference": {
+    "nomeArquivo": "folha.jpg",
+    "modelo": "MobileNetV3-Small",
+    "classe": "Antracnose",
+    "confianca": 0.7,
+    "top_3": [ … ]
+  }
+}
 ```
 
 | Status | Quando |
 | --- | --- |
-| 400 | corpo inválido (`message` vazia ou acima de 4000 caracteres) |
+| 400 | corpo, pergunta ou tipo de mídia inválidos |
+| 413 | foto maior que 20 MiB ou formulário maior que 21 MiB |
+| 422 | arquivo de imagem inválido |
+| 502–504 | falha, indisponibilidade ou timeout do classificador |
 | 500 | falha do provedor de LLM ou do banco — a mensagem do erro vem em `error` |
 
 `maxDuration` é 120s: o agente pode encadear várias tools antes de responder.
+Em perguntas futuras, o agente recebe novamente os resultados da classificação
+guardados nas mensagens anteriores.
 
 ---
 
@@ -67,6 +95,17 @@ provedor não vira entrada no histórico.
   "propertyId": "uuid | null",
   "mensagens": [
     { "role": "user", "content": "…" },
+    {
+      "role": "user",
+      "content": "…",
+      "leafInference": {
+        "modelo": "MobileNetV3-Small",
+        "classe": "Antracnose",
+        "confianca": 0.7,
+        "top_3": [ … ],
+        "nomeArquivo": "folha.jpg"
+      }
+    },
     { "role": "assistant", "content": "…", "sources": [ … ] }
   ]
 }
