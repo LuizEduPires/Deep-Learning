@@ -6,8 +6,10 @@ services:
       POSTGRES_USER: pitaya
       POSTGRES_PASSWORD: pitaya
       POSTGRES_DB: pitaya
+    # Porta no host configurável em banco/.env (PITAYA_DB_PORT) para quem já
+    # tem um PostgreSQL local ocupando a 5432.
     ports:
-      - "5432:5432"
+      - "${PITAYA_DB_PORT:-5432}:5432"
     volumes:
       - pitaya-pgdata:/var/lib/postgresql/data
 

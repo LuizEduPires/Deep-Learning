@@ -1,5 +1,5 @@
-import Chat from "@/frontend/chat";
+import Inicio from "@/frontend/inicio";
 
 export default function Home() {
-  return <Chat />;
+  return <Inicio />;
 }

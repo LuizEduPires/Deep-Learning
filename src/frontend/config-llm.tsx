@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  IconeAtencao,
-  IconeChave,
-  IconeLlm,
-  IconeSemChave,
-} from "./icones";
+import { useEffect, useState } from "react";
+import { IconeAtencao, IconeChave, IconeSemChave } from "./icones";
+import { TituloSecao, classeBotaoPrimario, classeCartao, classeInput } from "./ui";
 
 type Modelo = { id: string; rotulo: string; nota?: string };
 
@@ -38,58 +34,19 @@ const OUTRO = "__outro__";
  */
 export default function ConfigLlm() {
   const [estado, setEstado] = useState<Estado | null>(null);
-  const [aberto, setAberto] = useState(false);
   const [provider, setProvider] = useState("");
   const [modelo, setModelo] = useState("");
   const [outro, setOutro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
-  const botao = useRef<HTMLButtonElement>(null);
-  const [posicao, setPosicao] = useState<{
-    top: number;
-    right: number;
-    width: number;
-  } | null>(null);
-
-  /**
-   * Posiciona o painel abaixo do botão sem deixar sobrar para fora da tela.
-   * Ancorar só pela direita do botão jogava o painel para fora da borda
-   * esquerda no celular, porque o botão fica no canto direito do cabeçalho.
-   */
-  useEffect(() => {
-    if (!aberto) return;
-
-    const medir = () => {
-      const r = botao.current?.getBoundingClientRect();
-      if (!r) return;
-      const margem = 16;
-      const width = Math.min(352, window.innerWidth - margem * 2);
-      const direitaDoBotao = window.innerWidth - r.right;
-      setPosicao({
-        top: r.bottom + 8,
-        right: Math.min(
-          Math.max(direitaDoBotao, margem),
-          window.innerWidth - width - margem,
-        ),
-        width,
-      });
-    };
-
-    medir();
-    window.addEventListener("resize", medir);
-    window.addEventListener("scroll", medir, true);
-    return () => {
-      window.removeEventListener("resize", medir);
-      window.removeEventListener("scroll", medir, true);
-    };
-  }, [aberto]);
 
   useEffect(() => {
     fetch("/api/llm")
       .then((r) => (r.ok ? r.json() : null))
       .then((d: Estado | null) => {
         if (d) aplicar(d);
+        else setErro("Não consegui carregar a configuração de LLM.");
       })
       .catch(() => setErro("Não consegui carregar a configuração de LLM."));
   }, []);
@@ -146,79 +103,59 @@ export default function ConfigLlm() {
     }
   }
 
-  if (!estado) {
-    return (
-      <span
-        className="flex items-center gap-1.5 text-sm"
-        style={{ color: "var(--suave)" }}
-      >
-        <IconeLlm />…
-      </span>
-    );
-  }
-
-  const selecionado = estado.provedores.find((p) => p.id === provider);
+  const selecionado = estado?.provedores.find((p) => p.id === provider);
   const modeloFinal = modelo === OUTRO ? outro.trim() : modelo;
-  const mudou =
-    provider !== estado.atual.provider || modeloFinal !== estado.atual.model;
+  const mudou = !!estado && (provider !== estado.atual.provider || modeloFinal !== estado.atual.model);
   const podeSalvar = !salvando && mudou && modeloFinal.length > 0;
 
   return (
-    <>
-      <button
-        ref={botao}
-        onClick={() => setAberto((v) => !v)}
-        className="flex max-w-[14rem] items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition-opacity hover:opacity-70"
-        style={{ borderColor: "var(--borda)", color: "var(--suave)" }}
-        title={`${estado.atual.provider} / ${estado.atual.model} — clique para trocar`}
-      >
-        <IconeLlm />
-        {/* Id do OpenRouter passa de 40 caracteres e empurra o cabeçalho. */}
-        <span className="truncate">{estado.atual.model}</span>
-      </button>
+    <section aria-labelledby="modelo-ia" className="flex flex-col gap-3">
+      <div>
+        <TituloSecao id="modelo-ia">Modelo de IA</TituloSecao>
+        <p className="mt-1 text-sm leading-snug text-suave">
+          Escolha quem responde. Vale a partir da próxima pergunta; as chaves de acesso ficam só no
+          servidor.
+        </p>
+      </div>
 
-      {aberto && posicao && (
-        <div
-          className="fixed z-20 max-h-[75vh] space-y-4 overflow-y-auto rounded-xl border p-4 shadow-lg"
-          style={{
-            top: posicao.top,
-            right: posicao.right,
-            width: posicao.width,
-            borderColor: "var(--borda)",
-            background: "var(--painel)",
-          }}
-        >
-          <div>
-            <h2 className="text-sm font-semibold">Modelo de IA</h2>
-            <p className="text-xs" style={{ color: "var(--suave)" }}>
-              Vale a partir da próxima pergunta, sem reiniciar o servidor. As
-              chaves de API continuam no <code>.env</code>.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {estado.provedores.map((p) => {
+      {!estado ? (
+        erro ? (
+          <p className="rounded-2xl bg-acento-suave px-4 py-3 text-sm text-acento-texto">{erro}</p>
+        ) : (
+          <div className="h-60 animate-pulse rounded-[20px] bg-painel" />
+        )
+      ) : (
+        <>
+          <div role="radiogroup" aria-label="Provedor" className={`${classeCartao} overflow-hidden`}>
+            {estado.provedores.map((p, i) => {
               const ativo = p.id === provider;
+              const emUso = p.id === estado.atual.provider;
               return (
                 <button
                   key={p.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={ativo}
                   onClick={() => trocarProvedor(p.id)}
-                  className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm"
-                  style={{
-                    borderColor: ativo ? "var(--acento)" : "var(--borda)",
-                    background: ativo ? "var(--acento-suave)" : "transparent",
-                    color: ativo ? "var(--acento)" : "var(--texto)",
-                  }}
+                  className={`flex min-h-[60px] w-full items-center gap-3 px-4 py-2.5 text-left transition ${
+                    i > 0 ? "border-t border-linha" : ""
+                  } ${ativo ? "bg-marca-suave" : "hover:bg-fundo"}`}
                 >
-                  {p.rotulo}
+                  <span
+                    className={`h-5 w-5 shrink-0 rounded-full ${
+                      ativo ? "border-[6px] border-marca-texto bg-painel" : "border-2 border-suave"
+                    }`}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-bold">{p.rotulo}</span>
+                    <span className="block text-[13px] text-texto-2">
+                      {emUso ? `Em uso · ${estado.atual.model}` : p.temChave ? "Chave configurada" : "Sem chave no servidor"}
+                    </span>
+                  </span>
                   {/* Chave cortada diz o que falta; um alerta genérico não. */}
                   <span
-                    className="flex"
-                    title={
-                      p.temChave
-                        ? `${p.envChave} definida`
-                        : `${p.envChave} ausente no .env`
-                    }
+                    className={p.temChave ? "text-marca-texto" : "text-suave"}
+                    title={p.temChave ? `${p.envChave} definida` : `${p.envChave} ausente no .env`}
                   >
                     {p.temChave ? <IconeChave /> : <IconeSemChave />}
                   </span>
@@ -229,11 +166,9 @@ export default function ConfigLlm() {
 
           {selecionado && (
             <>
-              <p className="text-xs" style={{ color: "var(--suave)" }}>
-                {selecionado.ajuda}
-              </p>
+              <p className="text-[13px] leading-snug text-suave">{selecionado.ajuda}</p>
 
-              <label className="flex flex-col gap-1 text-sm">
+              <label className="flex flex-col gap-1.5 text-[13px] font-bold text-texto-2">
                 Modelo
                 <select
                   value={modelo}
@@ -241,12 +176,7 @@ export default function ConfigLlm() {
                     setModelo(e.target.value);
                     setSalvo(false);
                   }}
-                  className="rounded-lg border px-3 py-2"
-                  style={{
-                    borderColor: "var(--borda)",
-                    background: "transparent",
-                    color: "var(--texto)",
-                  }}
+                  className={classeInput}
                 >
                   {selecionado.modelos.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -259,7 +189,7 @@ export default function ConfigLlm() {
               </label>
 
               {modelo === OUTRO && (
-                <label className="flex flex-col gap-1 text-sm">
+                <label className="flex flex-col gap-1.5 text-[13px] font-bold text-texto-2">
                   Id do modelo
                   <input
                     value={outro}
@@ -268,25 +198,17 @@ export default function ConfigLlm() {
                       setSalvo(false);
                     }}
                     placeholder={selecionado.modeloPadrao}
-                    className="rounded-lg border px-3 py-2 font-mono"
-                    style={{
-                      borderColor: "var(--borda)",
-                      background: "transparent",
-                    }}
+                    className={`${classeInput} font-mono`}
                   />
                 </label>
               )}
 
               {!selecionado.temChave && (
-                <p
-                  className="flex items-start gap-1.5 text-sm"
-                  style={{ color: "var(--acento)" }}
-                >
+                <p className="flex items-start gap-1.5 text-sm text-acento-texto">
                   <IconeAtencao className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>
-                    {selecionado.envChave} não está no <code>.env</code>. Dá
-                    para salvar, mas o chat vai falhar enquanto a chave não
-                    existir.
+                    {selecionado.envChave} não está no <code>.env</code>. Dá para salvar, mas o chat
+                    vai falhar enquanto a chave não existir.
                   </span>
                 </p>
               )}
@@ -294,48 +216,36 @@ export default function ConfigLlm() {
           )}
 
           {estado.atual.aviso && (
-            <p
-              className="flex items-start gap-1.5 text-sm"
-              style={{ color: "var(--acento)" }}
-            >
+            <p className="flex items-start gap-1.5 text-sm text-acento-texto">
               <IconeAtencao className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{estado.atual.aviso}</span>
             </p>
           )}
-          {erro && (
-            <p className="text-sm" style={{ color: "var(--acento)" }}>
-              {erro}
-            </p>
-          )}
+          {erro && <p className="text-sm text-acento-texto">{erro}</p>}
 
           <div className="flex flex-wrap items-center gap-3">
             <button
+              type="button"
               onClick={() => enviar("PUT")}
               disabled={!podeSalvar}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-              style={{ background: "var(--acento)" }}
+              className={classeBotaoPrimario}
             >
-              {salvando ? "Salvando…" : "Salvar"}
+              {salvando ? "Salvando…" : "Salvar modelo"}
             </button>
             {estado.atual.origem === "painel" && (
               <button
+                type="button"
                 onClick={() => enviar("DELETE")}
                 disabled={salvando}
-                className="rounded-lg border px-4 py-2 text-sm disabled:opacity-40"
-                style={{ borderColor: "var(--borda)" }}
+                className="min-h-11 text-sm font-bold text-marca-texto disabled:opacity-40"
               >
-                Usar o do .env
+                Voltar ao padrão do servidor
               </button>
             )}
-            <span className="text-xs" style={{ color: "var(--suave)" }}>
-              {salvo && !mudou ? "Salvo. " : ""}
-              Em uso: <strong>{estado.atual.provider}</strong> /{" "}
-              <code>{estado.atual.model}</code> (
-              {estado.atual.origem === "painel" ? "painel" : ".env"})
-            </span>
+            {salvo && !mudou && <span className="text-sm text-marca-texto">Salvo.</span>}
           </div>
-        </div>
+        </>
       )}
-    </>
+    </section>
   );
 }

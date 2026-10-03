@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import BuscaBioinsumos from "@/frontend/bioinsumos/busca";
 
 export const metadata: Metadata = {
-  title: "Bioinsumos — IA Pitaya",
+  title: "Bioinsumos — Dr. Pitaya",
   description:
     "Consulta estruturada aos produtos biológicos e inoculantes registrados no MAPA, pela API Bioinsumos da Embrapa.",
 };
