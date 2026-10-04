@@ -137,6 +137,18 @@ const TRACOS = {
       <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" />
     </>
   ),
+  usuario: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </>
+  ),
+  sair: (
+    <>
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+      <path d="M10 17l-5-5 5-5M5 12h11" />
+    </>
+  ),
 } as const;
 
 export type NomeIcone = keyof typeof TRACOS;
@@ -257,6 +269,7 @@ export function Campo(props: {
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   obrigatorio?: boolean;
   nome?: string;
+  autoComplete?: string;
 }) {
   return (
     <label className="flex flex-col gap-1.5 text-[13px] font-bold text-texto-2">
@@ -268,6 +281,7 @@ export function Campo(props: {
         <input
           name={props.nome}
           type={props.tipo ?? "text"}
+          autoComplete={props.autoComplete}
           inputMode={props.inputMode}
           required={props.obrigatorio}
           step={props.tipo === "number" ? "any" : undefined}
@@ -373,7 +387,7 @@ export function Etiqueta({
     alerta: "bg-alerta-suave text-alerta-texto",
   };
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-bold ${tons[tom]}`}>
+    <span className={`inline-flex max-w-full shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-bold ${tons[tom]}`}>
       {children}
     </span>
   );

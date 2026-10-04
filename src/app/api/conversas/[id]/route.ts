@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { respostaSemLogin } from "@/server/auth-http";
 import { abrirConversa, apagarConversa } from "@/server/conversas";
 
 export const runtime = "nodejs";
@@ -32,6 +33,8 @@ export async function GET(
     }
     return NextResponse.json(conversa);
   } catch (err) {
+    const semLogin = respostaSemLogin(err);
+    if (semLogin) return semLogin;
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Erro ao abrir conversa:", msg);
     return NextResponse.json(
@@ -60,6 +63,8 @@ export async function DELETE(
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
+    const semLogin = respostaSemLogin(err);
+    if (semLogin) return semLogin;
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Erro ao apagar conversa:", msg);
     return NextResponse.json(

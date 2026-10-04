@@ -9,6 +9,7 @@ import {
   salvarConfigLlm,
 } from "@/server/llm";
 import { listarModelosOpenRouter } from "@/server/llm/modelos-openrouter";
+import { usuarioDaRequisicao } from "@/server/auth";
 
 export const runtime = "nodejs";
 
@@ -48,7 +49,19 @@ export async function GET() {
   return NextResponse.json(await estado());
 }
 
+/**
+ * A troca de modelo vale para o app inteiro, então só quem tem sessão válida
+ * troca — o proxy confere só o formato do cookie.
+ */
+async function semSessao() {
+  if (await usuarioDaRequisicao()) return null;
+  return NextResponse.json({ error: "Faça login para continuar." }, { status: 401 });
+}
+
 export async function PUT(request: Request) {
+  const bloqueio = await semSessao();
+  if (bloqueio) return bloqueio;
+
   let parsed;
   try {
     parsed = Body.parse(await request.json());
@@ -76,6 +89,9 @@ export async function PUT(request: Request) {
 
 /** Volta para o provedor e o modelo do .env. */
 export async function DELETE() {
+  const bloqueio = await semSessao();
+  if (bloqueio) return bloqueio;
+
   try {
     await limparConfigLlm();
     return NextResponse.json(await estado());

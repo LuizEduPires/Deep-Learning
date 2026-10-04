@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "./db";
-import { usuarioDemo } from "./usuarios";
+import { usuarioAtual } from "./auth";
 
 export interface NovaPropriedade {
   name: string;
@@ -9,7 +9,7 @@ export interface NovaPropriedade {
 }
 
 export async function listarPropriedades() {
-  const user = await usuarioDemo();
+  const user = await usuarioAtual();
   return db
     .select()
     .from(schema.properties)
@@ -17,7 +17,7 @@ export async function listarPropriedades() {
 }
 
 export async function criarPropriedade(dados: NovaPropriedade) {
-  const user = await usuarioDemo();
+  const user = await usuarioAtual();
   const [criada] = await db
     .insert(schema.properties)
     .values({ userId: user.id, ...dados })
@@ -27,7 +27,7 @@ export async function criarPropriedade(dados: NovaPropriedade) {
 
 /** Atualiza só se a propriedade for do usuário; devolve undefined se não achar. */
 export async function atualizarPropriedade(id: string, dados: NovaPropriedade) {
-  const user = await usuarioDemo();
+  const user = await usuarioAtual();
   const [atualizada] = await db
     .update(schema.properties)
     .set(dados)

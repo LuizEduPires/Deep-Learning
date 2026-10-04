@@ -207,16 +207,16 @@ export function CartaoProduto({
 
   return (
     <article className={`${classeCartao} flex flex-col gap-3 p-4`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="text-[17px] leading-snug font-bold">{p.nome}</h3>
-          <p className="mt-0.5 text-sm text-texto-2">{p.ingrediente ?? "Ingrediente não informado"}</p>
-        </div>
-        {p.classe && <Etiqueta tom={p.biologico ? "acento" : "marca"}>{p.classe}</Etiqueta>}
+      {/* A classe fica com as outras etiquetas, não ao lado do nome: ali ela
+          espremia nome e ingrediente numa coluna estreita no celular. */}
+      <div className="min-w-0">
+        <h3 className="text-[17px] leading-snug font-bold break-words">{p.nome}</h3>
+        <p className="mt-0.5 text-sm break-words text-texto-2">{p.ingrediente ?? "Ingrediente não informado"}</p>
       </div>
 
-      {(p.biologico || p.organico || p.todasAsCulturas || p.formulacao) && (
+      {(p.classe || p.biologico || p.organico || p.todasAsCulturas || p.formulacao) && (
         <div className="flex flex-wrap gap-1.5">
+          {p.classe && <Etiqueta tom={p.biologico ? "acento" : "marca"}>{p.classe}</Etiqueta>}
           {p.biologico && <Etiqueta tom="acento">Biológico</Etiqueta>}
           {p.organico && <Etiqueta tom="marca">Uso orgânico</Etiqueta>}
           {/* Registro genérico: vale para a cultura buscada sem citá-la. */}

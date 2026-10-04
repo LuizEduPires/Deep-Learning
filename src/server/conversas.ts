@@ -7,13 +7,21 @@ import {
 import { db, schema } from "./db";
 import { montarMensagensDoChat } from "./mensagens-chat";
 import type { Source } from "./llm/types";
-import { usuarioDemo } from "./usuarios";
+import { usuarioAtual } from "./auth";
 
 export interface PerguntaDoChat {
   conversationId?: string;
   propertyId?: string;
   message: string;
   foto?: FotoDeFolha;
+}
+
+/** conversationId que não existe ou é de outro usuário. */
+export class ErroConversaNaoEncontrada extends Error {
+  constructor() {
+    super("Conversa não encontrada.");
+    this.name = "ErroConversaNaoEncontrada";
+  }
 }
 
 /** Título da conversa: a primeira pergunta, cortada no limite da lista. */
@@ -34,13 +42,29 @@ function tituloDe(mensagem: string) {
  *
  * A propriedade entra no contexto porque as tools de clima precisam de
  * coordenadas; sem `propertyId` explícito vale a primeira propriedade do
- * usuário, que no MVP de organização única é a dele.
+ * usuário logado.
  */
 export async function responderNaConversa(pergunta: PerguntaDoChat) {
-  const user = await usuarioDemo();
+  const user = await usuarioAtual();
   const analise = pergunta.foto
     ? await classificarImagemFolha(pergunta.foto)
     : undefined;
+
+  // Conversa e propriedade só valem se forem do usuário: sem isso, um id
+  // alheio bastaria para ler o histórico de outra conta ou escrever nele.
+  if (pergunta.conversationId) {
+    const [dona] = await db
+      .select({ id: schema.conversations.id })
+      .from(schema.conversations)
+      .where(
+        and(
+          eq(schema.conversations.id, pergunta.conversationId),
+          eq(schema.conversations.userId, user.id),
+        ),
+      )
+      .limit(1);
+    if (!dona) throw new ErroConversaNaoEncontrada();
+  }
 
   const historico = pergunta.conversationId
     ? await db
@@ -55,7 +79,12 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
         await db
           .select()
           .from(schema.properties)
-          .where(eq(schema.properties.id, pergunta.propertyId))
+          .where(
+            and(
+              eq(schema.properties.id, pergunta.propertyId),
+              eq(schema.properties.userId, user.id),
+            ),
+          )
           .limit(1)
       )[0]
     : (
@@ -88,7 +117,7 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
       .insert(schema.conversations)
       .values({
         userId: user.id,
-        propertyId: pergunta.propertyId ?? null,
+        propertyId: pergunta.propertyId ? (property?.id ?? null) : null,
         title: tituloDe(pergunta.message),
       })
       .returning();
@@ -128,7 +157,7 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
  * de ontem devia trazê-la para o topo, senão ela some para o fim da lista.
  */
 export async function listarConversas(limite = 50) {
-  const user = await usuarioDemo();
+  const user = await usuarioAtual();
 
   return db
     .select({
@@ -160,10 +189,10 @@ export async function listarConversas(limite = 50) {
  * Mensagens de uma conversa, no formato que o chat renderiza.
  *
  * Devolve null quando a conversa não é do usuário — id de outra pessoa não
- * pode virar leitura de conversa alheia só porque o MVP não tem login.
+ * pode virar leitura de conversa alheia.
  */
 export async function abrirConversa(id: string) {
-  const user = await usuarioDemo();
+  const user = await usuarioAtual();
 
   const [conversa] = await db
     .select()
@@ -199,7 +228,7 @@ export async function abrirConversa(id: string) {
 
 /** Apaga a conversa e, por cascata no banco, as mensagens dela. */
 export async function apagarConversa(id: string) {
-  const user = await usuarioDemo();
+  const user = await usuarioAtual();
 
   const apagadas = await db
     .delete(schema.conversations)

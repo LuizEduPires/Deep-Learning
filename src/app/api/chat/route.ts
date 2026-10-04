@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { responderNaConversa } from "@/server/conversas";
+import { respostaSemLogin } from "@/server/auth-http";
+import { ErroConversaNaoEncontrada, responderNaConversa } from "@/server/conversas";
 import { lerCorpoChat, ErroEntradaChat } from "@/server/chat-http";
 import { ErroClassificadorFolha } from "@/server/classificador-folha";
 import { lerConfigLlm } from "@/server/llm/config";
@@ -29,6 +30,11 @@ export async function POST(request: Request) {
   try {
     return NextResponse.json(await responderNaConversa(parsed));
   } catch (err) {
+    const semLogin = respostaSemLogin(err);
+    if (semLogin) return semLogin;
+    if (err instanceof ErroConversaNaoEncontrada) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
+    }
     if (err instanceof ErroClassificadorFolha) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }

@@ -289,7 +289,7 @@ export default function Chat() {
               <p className="flex items-start gap-2 text-sm text-suave">
                 <Icone nome="pin" className="mt-0.5 h-4 w-4" />
                 <span>
-                  <Link href="/fazenda" className="font-bold text-marca-texto underline">
+                  <Link href="/fazenda" className="-my-3 inline-block py-3 font-bold text-marca-texto underline">
                     Cadastre a propriedade
                   </Link>{" "}
                   para habilitar as perguntas de clima.
@@ -414,7 +414,7 @@ export default function Chat() {
                   enviar(input, foto);
                 }
               }}
-              placeholder="Pergunte sobre o manejo…"
+              placeholder="Sua pergunta…"
               className="max-h-[140px] min-h-11 flex-1 resize-none bg-transparent py-2.5 pr-2 pl-3 text-base leading-6 outline-none md:text-[15px] placeholder:text-suave"
             />
 

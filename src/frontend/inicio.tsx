@@ -66,7 +66,11 @@ export default function Inicio() {
       <header className="flex items-center justify-between gap-3">
         <div className="flex shrink-0 items-center gap-2.5 md:hidden">
           <Logo />
-          <span className="font-display text-[22px] font-bold tracking-tight whitespace-nowrap">Dr. Pitaya</span>
+          {/* Abaixo de 360px o nome sai e o logo fica sozinho: senão o botão
+              da propriedade ao lado era cortado em "Cad…". */}
+          <span className="font-display text-[22px] font-bold tracking-tight whitespace-nowrap max-[359px]:sr-only">
+            Dr. Pitaya
+          </span>
         </div>
         <Link
           href="/fazenda"

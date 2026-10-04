@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { respostaSemLogin } from "@/server/auth-http";
 import { listarConversas } from "@/server/conversas";
 
 export const runtime = "nodejs";
@@ -9,6 +10,8 @@ export async function GET() {
   try {
     return NextResponse.json(await listarConversas());
   } catch (err) {
+    const semLogin = respostaSemLogin(err);
+    if (semLogin) return semLogin;
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Erro ao listar conversas:", msg);
     return NextResponse.json(
