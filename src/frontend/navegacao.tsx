@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icone, Logo, type NomeIcone } from "./ui";
+import { usarUsuario } from "./usuario";
 
 type Aba = {
   href: string;
@@ -17,6 +18,7 @@ const ABAS: Aba[] = [
   { href: "/conversas", rotulo: "Conversas", icone: "conversa", inclui: ["/chat"] },
   { href: "/agrofit", rotulo: "Produtos", icone: "busca", inclui: ["/bioinsumos"] },
   { href: "/fazenda", rotulo: "Fazenda", icone: "broto", inclui: [] },
+  { href: "/conta", rotulo: "Conta", icone: "usuario", inclui: [] },
 ];
 
 function ativa(aba: Aba, caminho: string) {
@@ -26,14 +28,21 @@ function ativa(aba: Aba, caminho: string) {
 
 /**
  * Casca do app: menu lateral no desktop e barra de abas no celular. A tela de
- * verificação fica sem navegação; o chat, no celular, também — ele ocupa a
- * tela inteira com o campo de pergunta fixo embaixo, onde a barra estaria.
+ * verificação e a de login ficam sem navegação; o chat, no celular, também —
+ * ele ocupa a tela inteira com o campo de pergunta fixo embaixo, onde a barra
+ * estaria.
  */
 export default function Casca({ children }: { children: React.ReactNode }) {
   const caminho = usePathname() ?? "/";
 
-  if (caminho.startsWith("/verificar")) return <>{children}</>;
+  if (caminho.startsWith("/verificar") || caminho.startsWith("/entrar")) return <>{children}</>;
 
+  return <CascaLogada caminho={caminho}>{children}</CascaLogada>;
+}
+
+function CascaLogada({ caminho, children }: { caminho: string; children: React.ReactNode }) {
+  // Também é o que manda para /entrar quando a sessão venceu.
+  const usuario = usarUsuario();
   const noChat = caminho === "/chat";
 
   return (
@@ -69,7 +78,18 @@ export default function Casca({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
-        <p className="mt-auto px-2 text-xs leading-snug text-suave">
+        {usuario && (
+          <Link
+            href="/conta"
+            className="mt-auto flex min-h-11 items-center gap-3 rounded-xl px-3 text-[14px] font-semibold text-texto-2 hover:bg-fundo"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-marca-suave text-[14px] font-bold text-marca-texto">
+              {usuario.name.trim().charAt(0).toUpperCase()}
+            </span>
+            <span className="truncate">{usuario.name}</span>
+          </Link>
+        )}
+        <p className={`${usuario ? "mt-3" : "mt-auto"} px-2 text-xs leading-snug text-suave`}>
           Registro no MAPA não substitui o receituário agronômico.
         </p>
       </nav>
@@ -79,7 +99,7 @@ export default function Casca({ children }: { children: React.ReactNode }) {
       {!noChat && (
         <nav
           aria-label="Navegação principal"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 gap-1 border-t border-borda bg-painel px-2 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] md:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 gap-1 border-t border-borda bg-painel px-2 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] md:hidden"
         >
           {ABAS.map((aba) => {
             const on = ativa(aba, caminho);
@@ -93,7 +113,7 @@ export default function Casca({ children }: { children: React.ReactNode }) {
                 }`}
               >
                 <span
-                  className={`flex h-[30px] w-14 items-center justify-center rounded-full ${
+                  className={`flex h-[30px] w-12 items-center justify-center rounded-full ${
                     on ? "bg-marca-suave" : ""
                   }`}
                 >

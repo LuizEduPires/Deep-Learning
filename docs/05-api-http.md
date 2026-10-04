@@ -5,6 +5,25 @@ decide é `src/server/` (ver [04-estrutura.md](04-estrutura.md)).
 
 Base local: `http://localhost:3000`.
 
+Exceto `/api/health` e `/api/auth/*`, toda rota exige login: sem o cookie
+`pitaya_sessao` a resposta é **401**. Conversas e propriedades são sempre as do
+usuário logado — id de outra conta responde 404.
+
+---
+
+## Autenticação — `/api/auth/*`
+
+| Rota | Corpo | Resposta |
+| --- | --- | --- |
+| `POST /api/auth/cadastro` | `{ name, email, senha }` (senha ≥ 8) | 201 + cookie; 409 se o e-mail já existe |
+| `POST /api/auth/entrar` | `{ email, senha }` | 200 + cookie; 401 se não confere |
+| `POST /api/auth/sair` | — | apaga a sessão no banco e o cookie |
+| `GET /api/auth/eu` | — | `{ id, name, email }` ou 401 |
+
+O cookie é `httpOnly`, vale 30 dias e guarda um token aleatório; o banco guarda
+só o SHA-256 dele (tabela `sessions`). A senha é gravada com scrypt. Lógica em
+`src/server/auth.ts`.
+
 ---
 
 ## `POST /api/chat`
@@ -162,7 +181,7 @@ nem sai por aqui.
 ```
 
 Latitude e longitude são validadas por faixa. `GET` devolve o array das
-propriedades do usuário demo do MVP (organização única, sem autenticação).
+propriedades do usuário logado.
 
 ---
 

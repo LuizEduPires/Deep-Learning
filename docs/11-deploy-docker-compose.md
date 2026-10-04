@@ -99,12 +99,12 @@ curl -k https://IP_DO_SERVIDOR:3443/api/health
 ```
 
 Restrinja as portas 3000 e 3443 à rede de teste no firewall do servidor: o app
-não tem autenticação própria. Fora de `localhost`, recursos do navegador como
+tem login próprio, mas não limita tentativas de senha nem confirma e-mail. Fora de `localhost`, recursos do navegador como
 ditado por voz exigem HTTPS. Certificados confiáveis devem ser instalados em
 um proxy reverso externo para acesso público.
 
 Para acesso externo, coloque um proxy reverso com HTTPS e controle de acesso na
-frente do `gateway`; o app ainda não tem autenticação própria. Se esse proxy
+frente do `gateway`; o login do app não limita tentativas de senha. Se esse proxy
 estiver em outra máquina, configure `APP_BIND_ADDRESS` e `APP_PORT` no `.env` e
 restrinja o acesso à porta. O domínio público em `OPENAI_BASE_URL` entra
 automaticamente na lista do proxy de saída. Para outras URLs personalizadas ou para importar CSV de

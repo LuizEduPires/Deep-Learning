@@ -5,6 +5,7 @@ import {
   criarPropriedade,
   listarPropriedades,
 } from "@/server/propriedades";
+import { respostaSemLogin } from "@/server/auth-http";
 
 export const runtime = "nodejs";
 
@@ -18,8 +19,19 @@ const Body = z.object({
 
 const BodyComId = Body.extend({ id: z.string().uuid() });
 
+/** Sem sessão vira 401; o resto segue como erro do servidor. */
+async function comLogin(fazer: () => Promise<Response>) {
+  try {
+    return await fazer();
+  } catch (err) {
+    const semLogin = respostaSemLogin(err);
+    if (semLogin) return semLogin;
+    throw err;
+  }
+}
+
 export async function GET() {
-  return NextResponse.json(await listarPropriedades());
+  return comLogin(async () => NextResponse.json(await listarPropriedades()));
 }
 
 export async function POST(request: Request) {
@@ -33,7 +45,9 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json(await criarPropriedade(parsed), { status: 201 });
+  return comLogin(async () =>
+    NextResponse.json(await criarPropriedade(parsed), { status: 201 }),
+  );
 }
 
 export async function PUT(request: Request) {
@@ -48,12 +62,14 @@ export async function PUT(request: Request) {
   }
 
   const { id, ...dados } = parsed;
-  const atualizada = await atualizarPropriedade(id, dados);
-  if (!atualizada) {
-    return NextResponse.json(
-      { error: "Propriedade não encontrada." },
-      { status: 404 },
-    );
-  }
-  return NextResponse.json(atualizada);
+  return comLogin(async () => {
+    const atualizada = await atualizarPropriedade(id, dados);
+    if (!atualizada) {
+      return NextResponse.json(
+        { error: "Propriedade não encontrada." },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json(atualizada);
+  });
 }
