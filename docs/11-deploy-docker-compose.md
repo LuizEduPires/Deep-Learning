@@ -98,15 +98,17 @@ confiar nele:
 curl -k https://IP_DO_SERVIDOR:3443/api/health
 ```
 
-Restrinja as portas 3000 e 3443 à rede de teste no firewall do servidor: o app
-não tem autenticação própria. Fora de `localhost`, recursos do navegador como
-ditado por voz exigem HTTPS. Certificados confiáveis devem ser instalados em
-um proxy reverso externo para acesso público.
+Restrinja as portas 3000 e 3443 à rede de teste no firewall do servidor. Fora
+de `localhost`, recursos do navegador como ditado por voz exigem HTTPS.
+Certificados confiáveis devem ser instalados em um proxy reverso externo para
+acesso público.
 
-Para acesso externo, coloque um proxy reverso com HTTPS e controle de acesso na
-frente do `gateway`; o app ainda não tem autenticação própria. Se esse proxy
-estiver em outra máquina, configure `APP_BIND_ADDRESS` e `APP_PORT` no `.env` e
-restrinja o acesso à porta. O domínio público em `OPENAI_BASE_URL` entra
+Para acesso externo, coloque um proxy reverso com HTTPS na frente do `gateway`.
+As APIs de chat, conversas e propriedades exigem uma sessão de usuário; os
+endpoints de autenticação são `/api/auth/register`, `/api/auth/login`,
+`/api/auth/session` e `/api/auth/logout`. Se o proxy estiver em outra máquina,
+configure `APP_BIND_ADDRESS` e `APP_PORT` no `.env` e restrinja o acesso à
+porta. O domínio público em `OPENAI_BASE_URL` entra
 automaticamente na lista do proxy de saída. Para outras URLs personalizadas ou para importar CSV de
 outro domínio, adicione o host a `deploy/egress/allowed-domains.txt` e reconstrua
 a imagem. Somente conexões HTTPS na porta 443 são aceitas.
@@ -188,4 +190,3 @@ widget.
 
 O Turnstile filtra acesso automatizado; ele não identifica usuários nem
 substitui autenticação quando o conteúdo exigir acesso restrito.
-

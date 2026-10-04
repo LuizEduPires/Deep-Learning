@@ -7,13 +7,19 @@ import {
 import { db, schema } from "./db";
 import { montarMensagensDoChat } from "./mensagens-chat";
 import type { Source } from "./llm/types";
-import { usuarioDemo } from "./usuarios";
 
 export interface PerguntaDoChat {
   conversationId?: string;
   propertyId?: string;
   message: string;
   foto?: FotoDeFolha;
+}
+
+export class RecursoConversaNaoEncontrado extends Error {
+  constructor() {
+    super("Conversa ou propriedade não encontrada.");
+    this.name = "RecursoConversaNaoEncontrado";
+  }
 }
 
 /** Título da conversa: a primeira pergunta, cortada no limite da lista. */
@@ -36,8 +42,24 @@ function tituloDe(mensagem: string) {
  * coordenadas; sem `propertyId` explícito vale a primeira propriedade do
  * usuário, que no MVP de organização única é a dele.
  */
-export async function responderNaConversa(pergunta: PerguntaDoChat) {
-  const user = await usuarioDemo();
+export async function responderNaConversa(
+  pergunta: PerguntaDoChat,
+  userId: string,
+) {
+  if (pergunta.conversationId) {
+    const [conversa] = await db
+      .select({ id: schema.conversations.id })
+      .from(schema.conversations)
+      .where(
+        and(
+          eq(schema.conversations.id, pergunta.conversationId),
+          eq(schema.conversations.userId, userId),
+        ),
+      )
+      .limit(1);
+    if (!conversa) throw new RecursoConversaNaoEncontrado();
+  }
+
   const analise = pergunta.foto
     ? await classificarImagemFolha(pergunta.foto)
     : undefined;
@@ -55,16 +77,25 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
         await db
           .select()
           .from(schema.properties)
-          .where(eq(schema.properties.id, pergunta.propertyId))
+          .where(
+            and(
+              eq(schema.properties.id, pergunta.propertyId),
+              eq(schema.properties.userId, userId),
+            ),
+          )
           .limit(1)
       )[0]
     : (
         await db
           .select()
           .from(schema.properties)
-          .where(eq(schema.properties.userId, user.id))
+          .where(eq(schema.properties.userId, userId))
           .limit(1)
       )[0];
+
+  if (pergunta.propertyId && !property) {
+    throw new RecursoConversaNaoEncontrado();
+  }
 
   const messages = montarMensagensDoChat(historico, pergunta.message, analise);
 
@@ -87,7 +118,7 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
     const [conversa] = await db
       .insert(schema.conversations)
       .values({
-        userId: user.id,
+        userId,
         propertyId: pergunta.propertyId ?? null,
         title: tituloDe(pergunta.message),
       })
@@ -127,9 +158,7 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
  * antiga. A ordem é por última mensagem, não por criação: retomar uma conversa
  * de ontem devia trazê-la para o topo, senão ela some para o fim da lista.
  */
-export async function listarConversas(limite = 50) {
-  const user = await usuarioDemo();
-
+export async function listarConversas(userId: string, limite = 50) {
   return db
     .select({
       id: schema.conversations.id,
@@ -146,7 +175,7 @@ export async function listarConversas(limite = 50) {
       schema.messages,
       eq(schema.messages.conversationId, schema.conversations.id),
     )
-    .where(eq(schema.conversations.userId, user.id))
+    .where(eq(schema.conversations.userId, userId))
     .groupBy(schema.conversations.id)
     .orderBy(
       desc(
@@ -162,16 +191,14 @@ export async function listarConversas(limite = 50) {
  * Devolve null quando a conversa não é do usuário — id de outra pessoa não
  * pode virar leitura de conversa alheia só porque o MVP não tem login.
  */
-export async function abrirConversa(id: string) {
-  const user = await usuarioDemo();
-
+export async function abrirConversa(id: string, userId: string) {
   const [conversa] = await db
     .select()
     .from(schema.conversations)
     .where(
       and(
         eq(schema.conversations.id, id),
-        eq(schema.conversations.userId, user.id),
+        eq(schema.conversations.userId, userId),
       ),
     )
     .limit(1);
@@ -198,15 +225,13 @@ export async function abrirConversa(id: string) {
 }
 
 /** Apaga a conversa e, por cascata no banco, as mensagens dela. */
-export async function apagarConversa(id: string) {
-  const user = await usuarioDemo();
-
+export async function apagarConversa(id: string, userId: string) {
   const apagadas = await db
     .delete(schema.conversations)
     .where(
       and(
         eq(schema.conversations.id, id),
-        eq(schema.conversations.userId, user.id),
+        eq(schema.conversations.userId, userId),
       ),
     )
     .returning({ id: schema.conversations.id });

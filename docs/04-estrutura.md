@@ -65,7 +65,8 @@ script.
 | `agent.ts`, `llm/`, `tools/` | o agente: system prompt, abstração de provedor e as tools |
 | `conversas.ts` | uma rodada de chat e o histórico: listar, abrir e apagar conversas |
 | `ingestao.ts`, `embeddings.ts`, `conhecimento-observador.ts` | a base de conhecimento: recorte em trechos, embeddings e o observador que ingere `.md` novo em desenvolvimento |
-| `propriedades.ts`, `usuarios.ts` | cadastro e o usuário demo do MVP |
+| `auth.ts` | cadastro, autenticação por senha e sessões |
+| `propriedades.ts` | cadastro e consulta de propriedades por usuário |
 | `agroapi/` | credencial e paginação do gateway da Embrapa, comuns a todas as APIs do portal |
 | `agrofit/` | `api.ts` (cliente) e `busca.ts` (consulta à cópia local no Postgres) |
 | `bioinsumos/` | `api.ts` (cliente, só para a coleta) e `busca.ts` (consulta à cópia local no Postgres) |

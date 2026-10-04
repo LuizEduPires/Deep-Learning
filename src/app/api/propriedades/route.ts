@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import {
   atualizarPropriedade,
   criarPropriedade,
   listarPropriedades,
 } from "@/server/propriedades";
+import { usuarioAutenticado } from "@/server/auth";
 
 export const runtime = "nodejs";
 
@@ -18,11 +19,19 @@ const Body = z.object({
 
 const BodyComId = Body.extend({ id: z.string().uuid() });
 
-export async function GET() {
-  return NextResponse.json(await listarPropriedades());
+export async function GET(request: NextRequest) {
+  const user = await usuarioAutenticado(request);
+  if (!user) {
+    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
+  }
+  return NextResponse.json(await listarPropriedades(user.id));
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const user = await usuarioAutenticado(request);
+  if (!user) {
+    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
+  }
   let parsed;
   try {
     parsed = Body.parse(await request.json());
@@ -33,10 +42,14 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json(await criarPropriedade(parsed), { status: 201 });
+  return NextResponse.json(await criarPropriedade(user.id, parsed), { status: 201 });
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  const user = await usuarioAutenticado(request);
+  if (!user) {
+    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
+  }
   let parsed;
   try {
     parsed = BodyComId.parse(await request.json());
@@ -48,7 +61,7 @@ export async function PUT(request: Request) {
   }
 
   const { id, ...dados } = parsed;
-  const atualizada = await atualizarPropriedade(id, dados);
+  const atualizada = await atualizarPropriedade(user.id, id, dados);
   if (!atualizada) {
     return NextResponse.json(
       { error: "Propriedade não encontrada." },

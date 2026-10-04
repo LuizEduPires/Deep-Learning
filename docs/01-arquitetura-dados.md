@@ -5,12 +5,23 @@
 ## Entidades
 
 ### users
-Identificação mínima (MVP sem senha — sessão por cookie).
+Contas de usuários do sistema.
 | Campo | Tipo | Regras |
 | --- | --- | --- |
 | id | uuid PK default gen_random_uuid() | |
 | name | text NOT NULL | |
 | email | text UNIQUE NOT NULL | |
+| password_hash | text nullable | hash `scrypt`; nullable para preservar usuários antigos do MVP |
+| created_at | timestamptz default now() | |
+
+### sessions
+Sessões opacas; o token original existe somente no cookie do cliente.
+| Campo | Tipo | Regras |
+| --- | --- | --- |
+| id | uuid PK | |
+| user_id | uuid FK → users ON DELETE CASCADE | |
+| token_hash | text UNIQUE NOT NULL | SHA-256 do token aleatório |
+| expires_at | timestamptz NOT NULL | sessões duram 30 dias |
 | created_at | timestamptz default now() | |
 
 ### properties
@@ -142,6 +153,8 @@ Escritas à mão, aplicadas em ordem por `npm run db:migrate`, todas com
 | `0002_bioinsumos` | o mesmo desenho para a base Bioinsumos |
 | `0003_unaccent` | extensão `unaccent`: "acao" tem que achar "ação" na busca |
 | `0004_configuracoes` | `configuracoes`, usada pelo painel de troca de LLM |
+| `0005_leaf_inference` | resultado da análise de folhas nas mensagens |
+| `0006_auth` | hash de senha em `users` e tabela `sessions` |
 
 Dados entram por scripts separados: `db:seed` (base de conhecimento),
 `agrofit:sync` / `bioinsumos:sync` (coleta pela API) e `agrofit:import` (CSV dos
@@ -152,5 +165,6 @@ Dados Abertos).
 - **Dimensão do embedding fixa (1536)** — trocar de modelo de embedding exige re-ingestão; aceitável no MVP (re-rodar pipeline).
 - **Dados abertos Agrofit mudam de layout** — importador isola o mapeamento de colunas; `raw` jsonb preserva o original.
 - **tsvector 'portuguese'** não faz stemming perfeito de termos agronômicos — mitigado por trigram nos campos Agrofit e RAG vetorial como via principal.
-- Sem auth real no MVP — `users` já em uuid permite evoluir para auth de verdade sem migração destrutiva. As rotas de conversa já conferem o dono e respondem 404 para id alheio, então ligar auth não exige reescrever a regra de acesso.
+- Contas antigas sem `password_hash` são preservadas, mas não podem autenticar até terem uma senha definida por um fluxo administrativo seguro.
+- Sessões guardam somente o hash do token; a expiração é validada em cada requisição autenticada e o logout revoga a sessão no banco.
 - **`configuracoes` na frente do `.env`** — quem edita `LLM_PROVIDER` com uma linha `llm` gravada no banco não vê efeito. O painel mostra a origem do que está valendo ("painel" ou ".env") e tem botão para voltar ao ambiente.
