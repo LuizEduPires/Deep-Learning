@@ -84,6 +84,31 @@ body {
 }
 
 /*
+ * Fileira que desliza para o lado no celular (atalhos de busca). A barra de
+ * rolagem some — no Windows ela aparecia grossa embaixo dos chips — e as
+ * bordas esmaecem, que é o que diz "tem mais para o lado". A esquerda só
+ * esmaece dentro do recuo da página, então o primeiro chip fica inteiro.
+ */
+@utility trilho-rolavel {
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (width < 48rem) {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 20px,
+      #000 calc(100% - 40px),
+      transparent 100%
+    );
+  }
+}
+
+/*
  * Anel de foco só em controles clicáveis. Campos de texto já mudam a cor da
  * borda ao receber foco; com o anel também, o celular mostrava um retângulo
  * magenta dentro da caixa arredondada do chat. Fica em @layer base para que
