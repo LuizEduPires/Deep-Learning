@@ -1,25 +1,37 @@
 "use client";
 
 import { useState } from "react";
+import { cadastroSchema, loginSchema } from "@/auth/validacao";
 import { Campo, Logo, Segmentado, classeBotaoPrimario, classeCartao } from "./ui";
 
 type Modo = "entrar" | "cadastro";
 
 /** Tela de login e cadastro, sem a casca de navegação. */
-export default function Entrar({ proximo }: { proximo: string }) {
+export default function Entrar() {
   const [modo, setModo] = useState<Modo>("entrar");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
-    if (modo === "cadastro" && senha.length < 8) {
-      setErro("A senha precisa ter pelo menos 8 caracteres.");
+    const validacao =
+      modo === "entrar"
+        ? loginSchema.safeParse({ email, senha })
+        : cadastroSchema.safeParse({
+            name: nome,
+            email,
+            senha,
+            confirmarSenha,
+          });
+    if (!validacao.success) {
+      setErro(validacao.error.issues[0]?.message ?? "Confira os dados informados.");
       return;
     }
+    const emailNormalizado = validacao.data.email;
 
     setEnviando(true);
     setErro(null);
@@ -28,7 +40,9 @@ export default function Entrar({ proximo }: { proximo: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          modo === "entrar" ? { email, senha } : { name: nome, email, senha },
+          modo === "entrar"
+            ? { email: emailNormalizado, senha }
+            : { name: nome, email: emailNormalizado, senha, confirmarSenha },
         ),
       });
       if (!res.ok) {
@@ -36,7 +50,7 @@ export default function Entrar({ proximo }: { proximo: string }) {
         throw new Error(data.error ?? "Não consegui continuar.");
       }
       // Recarga completa para as telas buscarem os dados já com a sessão nova.
-      window.location.assign(proximo);
+      window.location.assign("/");
     } catch (err) {
       setErro(err instanceof Error ? err.message : String(err));
       setEnviando(false);
@@ -73,7 +87,7 @@ export default function Entrar({ proximo }: { proximo: string }) {
           ]}
         />
 
-        <form onSubmit={enviar} className={`${classeCartao} flex flex-col gap-3 p-4`}>
+        <form noValidate onSubmit={enviar} className={`${classeCartao} flex flex-col gap-3 p-4`}>
           {modo === "cadastro" && (
             <Campo rotulo="Nome" valor={nome} aoMudar={setNome} dica="Maria Souza" nome="name" autoComplete="name" obrigatorio />
           )}
@@ -97,6 +111,17 @@ export default function Entrar({ proximo }: { proximo: string }) {
             autoComplete={modo === "entrar" ? "current-password" : "new-password"}
             obrigatorio
           />
+          {modo === "cadastro" && (
+            <Campo
+              rotulo="Confirme a senha"
+              valor={confirmarSenha}
+              aoMudar={setConfirmarSenha}
+              tipo="password"
+              nome="confirmarSenha"
+              autoComplete="new-password"
+              obrigatorio
+            />
+          )}
           {erro && (
             <p role="alert" className="text-sm text-acento-texto">
               {erro}

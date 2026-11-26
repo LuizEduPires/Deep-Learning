@@ -45,6 +45,8 @@ Componentes `"use client"`. Falam com o back **só** por `fetch` nas rotas de
 | --- | --- |
 | `chat.tsx` | a tela do chat: mensagens, sugestões, propriedade em contexto |
 | `historico.tsx` | painel "Conversas": lista, abre, cria e apaga conversas |
+| `fazenda.tsx` | dados da propriedade |
+| `planos-plantio.tsx` | criação/listagem de planos e análise climática atualizada |
 | `config-llm.tsx` | painel de troca de provedor e modelo de LLM |
 | `usar-ditado.ts`, `icones-microfone.tsx` | ditado por voz ([09](09-ditado-por-voz.md)) |
 | `agrofit/busca.tsx`, `bioinsumos/busca.tsx` | as duas telas de consulta às bases do MAPA |
@@ -66,6 +68,7 @@ script.
 | `conversas.ts` | uma rodada de chat e o histórico: listar, abrir e apagar conversas |
 | `ingestao.ts`, `embeddings.ts`, `conhecimento-observador.ts` | a base de conhecimento: recorte em trechos, embeddings e o observador que ingere `.md` novo em desenvolvimento |
 | `propriedades.ts` | propriedades do usuário logado |
+| `planos-plantio.ts` | planos de plantio e análises atualizadas por usuário/propriedade |
 | `auth.ts`, `auth-http.ts`, `sessao.ts` | cadastro, login e sessão por cookie; `sessao.ts` é a parte leve que o `proxy.ts` usa |
 | `agroapi/` | credencial e paginação do gateway da Embrapa, comuns a todas as APIs do portal |
 | `agrofit/` | `api.ts` (cliente) e `busca.ts` (consulta à cópia local no Postgres) |
@@ -101,8 +104,8 @@ mudar um campo, só `api.ts` muda.
 `drizzle.config.ts` e `migracoes/*.sql`.
 
 As migrações são **escritas à mão** e aplicadas por `scripts/migrate.ts` na
-ordem do nome do arquivo — hoje `0000_init`, `0001_agrofit_api`,
-`0002_bioinsumos`, `0003_unaccent`, `0004_configuracoes` e `0005_leaf_inference`.
+ordem do nome do arquivo — até `0007_planos_plantio`, que cria os planos de
+plantio vinculados aos usuários e às propriedades.
 Todas usam `IF NOT EXISTS`, então rodar de novo é seguro. O `out` do drizzle-kit aponta para `banco/_gerado`
 (ignorado no git) justamente para que um `drizzle-kit generate` acidental não
 sobrescreva nem renumere o que já rodou.

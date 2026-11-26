@@ -23,6 +23,19 @@ Propriedade/fazenda para consultas de clima.
 | latitude / longitude | double precision NOT NULL | CHECK lat ∈ [-90,90], lon ∈ [-180,180] |
 | created_at | timestamptz | |
 
+### planting_plans
+Plano de plantio criado pelo usuário para uma de suas propriedades.
+| Campo | Tipo | Regras |
+| --- | --- | --- |
+| id | uuid PK | |
+| user_id | uuid FK → users ON DELETE CASCADE | dono do plano |
+| property_id | uuid FK → properties ON DELETE CASCADE | propriedade associada |
+| cultivar | text NOT NULL | tipo/cultivar informada |
+| planned_date | date NOT NULL | data pretendida |
+| irrigation_available | boolean NOT NULL | disponibilidade de irrigação |
+| notes | text nullable | observações do produtor |
+| created_at / updated_at | timestamptz | |
+
 ### conversations
 | Campo | Tipo | Regras |
 | --- | --- | --- |
@@ -142,6 +155,9 @@ Escritas à mão, aplicadas em ordem por `npm run db:migrate`, todas com
 | `0002_bioinsumos` | o mesmo desenho para a base Bioinsumos |
 | `0003_unaccent` | extensão `unaccent`: "acao" tem que achar "ação" na busca |
 | `0004_configuracoes` | `configuracoes`, usada pelo painel de troca de LLM |
+| `0005_leaf_inference` | resultado do classificador de folhas nas mensagens |
+| `0006_autenticacao` | senha dos usuários e sessões por cookie |
+| `0007_planos_plantio` | planos de plantio por usuário e propriedade |
 
 Dados entram por scripts separados: `db:seed` (base de conhecimento),
 `agrofit:sync` / `bioinsumos:sync` (coleta pela API) e `agrofit:import` (CSV dos

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test:leaf": "tsx --test tests/classificador-folha.test.ts",
+    "test:auth": "tsx --test tests/auth-validacao.test.ts",
+    "test:plantio": "tsx --test tests/planos-plantio.test.ts",
     "db:up": "docker compose -f banco/docker-compose.yml up -d",
     "db:down": "docker compose -f banco/docker-compose.yml down",
     "db:adminer": "docker compose -f banco/docker-compose.yml --profile ferramentas up -d adminer",

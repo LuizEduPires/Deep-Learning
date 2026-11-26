@@ -1,5 +1,5 @@
 import { getProvider } from "./llm";
-import type { ChatMessage, ChatResponse, ToolContext } from "./llm/types";
+import type { ChatMessage, ChatResponse, ToolContext, ToolDef } from "./llm/types";
 import { getTools } from "./tools";
 
 export const SYSTEM_PROMPT = `Você é o Dr. Pitaya, assistente agronômico especializado no manejo da pitaya (Hylocereus spp. e Selenicereus spp.), falando português do Brasil com produtores e técnicos.
@@ -81,12 +81,13 @@ function textoNatural(texto: string): string {
 export async function responder(opts: {
   messages: ChatMessage[];
   ctx: ToolContext;
+  tools?: ToolDef[];
 }): Promise<ChatResponse> {
   const provider = await getProvider();
   const resposta = await provider.chat({
     system: SYSTEM_PROMPT,
     messages: opts.messages,
-    tools: getTools(),
+    tools: opts.tools ?? getTools(),
     ctx: opts.ctx,
   });
   return { ...resposta, text: textoNatural(resposta.text) };

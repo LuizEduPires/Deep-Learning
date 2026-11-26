@@ -9,6 +9,7 @@ import {
   serial,
   boolean,
   date,
+  index,
   primaryKey,
   unique,
   customType,
@@ -53,6 +54,26 @@ export const properties = pgTable("properties", {
   longitude: doublePrecision("longitude").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const plantingPlans = pgTable(
+  "planting_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    propertyId: uuid("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    cultivar: text("cultivar").notNull(),
+    plannedDate: date("planned_date").notNull(),
+    irrigationAvailable: boolean("irrigation_available").notNull().default(false),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("planting_plans_user_property_idx").on(t.userId, t.propertyId, t.plannedDate)],
+);
 
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
