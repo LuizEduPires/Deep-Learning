@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import {
   atualizarPropriedade,
@@ -34,7 +34,11 @@ export async function GET() {
   return comLogin(async () => NextResponse.json(await listarPropriedades()));
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const user = await usuarioAutenticado(request);
+  if (!user) {
+    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
+  }
   let parsed;
   try {
     parsed = Body.parse(await request.json());
@@ -50,7 +54,11 @@ export async function POST(request: Request) {
   );
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  const user = await usuarioAutenticado(request);
+  if (!user) {
+    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
+  }
   let parsed;
   try {
     parsed = BodyComId.parse(await request.json());

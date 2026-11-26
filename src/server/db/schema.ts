@@ -12,6 +12,7 @@ import {
   index,
   primaryKey,
   unique,
+  index,
   customType,
 } from "drizzle-orm/pg-core";
 import type { LeafInference } from "../classificador-folha";
@@ -43,6 +44,20 @@ export const sessions = pgTable("sessions", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("sessions_user_id_idx").on(t.userId)],
+);
 
 export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().defaultRandom(),

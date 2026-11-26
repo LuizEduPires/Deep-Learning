@@ -26,6 +26,36 @@ só o SHA-256 dele (tabela `sessions`). A senha é gravada com scrypt. Lógica e
 
 ---
 
+## Autenticação
+
+O back-end fornece os endpoints abaixo; a interface de login/cadastro não faz
+parte deste projeto. Cadastro e login definem o cookie `pitaya_session`
+(`HttpOnly`, `SameSite=Lax`, `Secure` em produção), com duração de 30 dias.
+Senhas precisam ter ao menos 12 caracteres e são armazenadas como hash scrypt.
+
+### `POST /api/auth/register`
+
+Recebe `{ "name": "Nome", "email": "produtor@example.com", "password": "uma senha forte" }`.
+Retorna `201 { "user": { "id", "name", "email", "createdAt" } }`; e-mail
+duplicado retorna `409`.
+
+### `POST /api/auth/login`
+
+Recebe `{ "email": "produtor@example.com", "password": "uma senha forte" }`.
+Retorna `200 { "user": { "id", "name", "email", "createdAt" } }`; credenciais
+inválidas retornam `401`.
+
+### `GET /api/auth/session` · `POST /api/auth/logout`
+
+`GET` devolve a conta da sessão atual ou `401`. `POST` revoga a sessão no banco
+e remove o cookie.
+
+`/api/chat`, `/api/conversas`, `/api/propriedades` e suas rotas de recurso
+exigem uma sessão válida. Conversas e propriedades são sempre consultadas no
+escopo do usuário autenticado; envie o cookie de sessão nas chamadas.
+
+---
+
 ## `POST /api/chat`
 
 Uma rodada de conversa com o agente. É a única rota que consome LLM.

@@ -13,14 +13,14 @@ export async function listarPropriedades() {
   return db
     .select()
     .from(schema.properties)
-    .where(eq(schema.properties.userId, user.id));
+    .where(eq(schema.properties.userId, userId));
 }
 
 export async function criarPropriedade(dados: NovaPropriedade) {
   const user = await usuarioAtual();
   const [criada] = await db
     .insert(schema.properties)
-    .values({ userId: user.id, ...dados })
+    .values({ userId, ...dados })
     .returning();
   return criada;
 }
@@ -31,7 +31,7 @@ export async function atualizarPropriedade(id: string, dados: NovaPropriedade) {
   const [atualizada] = await db
     .update(schema.properties)
     .set(dados)
-    .where(and(eq(schema.properties.id, id), eq(schema.properties.userId, user.id)))
+    .where(and(eq(schema.properties.id, id), eq(schema.properties.userId, userId)))
     .returning();
   return atualizada;
 }

@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { respostaSemLogin } from "@/server/auth-http";
 import { abrirConversa, apagarConversa } from "@/server/conversas";
+import { usuarioAutenticado } from "@/server/auth";
 
 export const runtime = "nodejs";
 
@@ -15,16 +16,20 @@ async function idValido(params: Promise<{ id: string }>) {
 }
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const user = await usuarioAutenticado(request);
+  if (!user) {
+    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
+  }
   const id = await idValido(params);
   if (!id.success) {
     return NextResponse.json({ error: "Id inválido." }, { status: 400 });
   }
 
   try {
-    const conversa = await abrirConversa(id.data);
+    const conversa = await abrirConversa(id.data, user.id);
     if (!conversa) {
       return NextResponse.json(
         { error: "Conversa não encontrada." },
@@ -45,16 +50,20 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const user = await usuarioAutenticado(request);
+  if (!user) {
+    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
+  }
   const id = await idValido(params);
   if (!id.success) {
     return NextResponse.json({ error: "Id inválido." }, { status: 400 });
   }
 
   try {
-    const apagou = await apagarConversa(id.data);
+    const apagou = await apagarConversa(id.data, user.id);
     if (!apagou) {
       return NextResponse.json(
         { error: "Conversa não encontrada." },

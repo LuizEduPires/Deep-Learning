@@ -188,4 +188,3 @@ widget.
 
 O Turnstile filtra acesso automatizado; ele não identifica usuários nem
 substitui autenticação quando o conteúdo exigir acesso restrito.
-

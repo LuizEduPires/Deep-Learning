@@ -91,9 +91,13 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
         await db
           .select()
           .from(schema.properties)
-          .where(eq(schema.properties.userId, user.id))
+          .where(eq(schema.properties.userId, userId))
           .limit(1)
       )[0];
+
+  if (pergunta.propertyId && !property) {
+    throw new RecursoConversaNaoEncontrado();
+  }
 
   const messages = montarMensagensDoChat(historico, pergunta.message, analise);
 
@@ -175,7 +179,7 @@ export async function listarConversas(limite = 50) {
       schema.messages,
       eq(schema.messages.conversationId, schema.conversations.id),
     )
-    .where(eq(schema.conversations.userId, user.id))
+    .where(eq(schema.conversations.userId, userId))
     .groupBy(schema.conversations.id)
     .orderBy(
       desc(
@@ -200,7 +204,7 @@ export async function abrirConversa(id: string) {
     .where(
       and(
         eq(schema.conversations.id, id),
-        eq(schema.conversations.userId, user.id),
+        eq(schema.conversations.userId, userId),
       ),
     )
     .limit(1);
@@ -235,7 +239,7 @@ export async function apagarConversa(id: string) {
     .where(
       and(
         eq(schema.conversations.id, id),
-        eq(schema.conversations.userId, user.id),
+        eq(schema.conversations.userId, userId),
       ),
     )
     .returning({ id: schema.conversations.id });

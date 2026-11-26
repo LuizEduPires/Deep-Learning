@@ -5,13 +5,18 @@ import { lerCorpoChat, ErroEntradaChat } from "@/server/chat-http";
 import { ErroClassificadorFolha } from "@/server/classificador-folha";
 import { lerConfigLlm } from "@/server/llm/config";
 import { descreveFalhaDeLlm } from "@/server/llm/erros";
+import { usuarioAutenticado } from "@/server/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 /** Adaptador HTTP: valida a entrada e delega para src/server/conversas.ts. */
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const user = await usuarioAutenticado(request);
+  if (!user) {
+    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
+  }
   let parsed;
   try {
     parsed = await lerCorpoChat(request);
@@ -28,7 +33,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    return NextResponse.json(await responderNaConversa(parsed));
+    return NextResponse.json(await responderNaConversa(parsed, user.id));
   } catch (err) {
     const semLogin = respostaSemLogin(err);
     if (semLogin) return semLogin;
