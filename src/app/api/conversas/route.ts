@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
 import { respostaSemLogin } from "@/server/auth-http";
 import { listarConversas } from "@/server/conversas";
-import { usuarioAutenticado } from "@/server/auth";
 
 export const runtime = "nodejs";
 
 /** Adaptador HTTP do histórico: delega para src/server/conversas.ts. */
 
-export async function GET(request: NextRequest) {
-  const user = await usuarioAutenticado(request);
-  if (!user) {
-    return NextResponse.json({ error: "Autenticação necessária." }, { status: 401 });
-  }
+export async function GET() {
   try {
-    return NextResponse.json(await listarConversas(user.id));
+    return NextResponse.json(await listarConversas());
   } catch (err) {
     const semLogin = respostaSemLogin(err);
     if (semLogin) return semLogin;

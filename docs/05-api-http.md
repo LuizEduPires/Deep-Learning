@@ -28,22 +28,22 @@ só o SHA-256 dele (tabela `sessions`). A senha é gravada com scrypt. Lógica e
 
 ## Autenticação
 
-O back-end fornece os endpoints abaixo; a interface de login/cadastro não faz
-parte deste projeto. Cadastro e login definem o cookie `pitaya_session`
-(`HttpOnly`, `SameSite=Lax`, `Secure` em produção), com duração de 30 dias.
-Senhas precisam ter ao menos 12 caracteres e são armazenadas como hash scrypt.
+Os endpoints legados abaixo continuam disponíveis para clientes existentes.
+Eles compartilham a sessão e o cookie `pitaya_sessao` dos endpoints atuais
+descritos acima. Senhas enviadas ao cadastro legado precisam ter ao menos 12
+caracteres e são armazenadas como hash scrypt.
 
 ### `POST /api/auth/register`
 
 Recebe `{ "name": "Nome", "email": "produtor@example.com", "password": "uma senha forte" }`.
-Retorna `201 { "user": { "id", "name", "email", "createdAt" } }`; e-mail
-duplicado retorna `409`.
+Retorna `201 { "user": { "id", "name", "email" } }`; e-mail duplicado retorna
+`409`.
 
 ### `POST /api/auth/login`
 
 Recebe `{ "email": "produtor@example.com", "password": "uma senha forte" }`.
-Retorna `200 { "user": { "id", "name", "email", "createdAt" } }`; credenciais
-inválidas retornam `401`.
+Retorna `200 { "user": { "id", "name", "email" } }`; credenciais inválidas
+retornam `401`.
 
 ### `GET /api/auth/session` · `POST /api/auth/logout`
 

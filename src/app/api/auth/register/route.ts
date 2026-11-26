@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   AUTH_COOKIE_NAME,
   AUTH_SESSION_MAX_AGE,
+  ErroDeCredencial,
   registerUser,
 } from "@/server/auth";
 
@@ -44,6 +45,12 @@ export async function POST(request: Request) {
     response.headers.set("Cache-Control", "no-store");
     return response;
   } catch (err) {
+    if (err instanceof ErroDeCredencial) {
+      return NextResponse.json(
+        { error: err.message },
+        { status: err.status, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     if (
       typeof err === "object" &&
       err !== null &&
