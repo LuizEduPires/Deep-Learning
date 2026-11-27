@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mesclarFontesAnalise } from "../src/server/planos-plantio";
 import { entradaPlanoPlantioSchema, montarPerguntaAnalise } from "../src/plantio/validacao";
 
 const entradaValida = {
@@ -56,4 +57,29 @@ test("instrui análise a usar clima e conhecimento sem inventar faixa térmica",
   assert.match(pergunta, /não invente limites/);
   assert.match(pergunta, /melhor época anual/);
   assert.match(pergunta, /Palora/);
+});
+
+test("mescla fontes da previsão antes das fontes da análise", () => {
+  const fontePrevisao = {
+    tool: "previsao_tempo",
+    label: "Open-Meteo",
+  };
+  const fonteAnalise = {
+    tool: "busca_conhecimento",
+    label: "Base técnica",
+  };
+
+  assert.deepEqual(mesclarFontesAnalise([fontePrevisao], [fonteAnalise]), [
+    fontePrevisao,
+    fonteAnalise,
+  ]);
+});
+
+test("mantém as fontes da análise quando a previsão não retorna fontes", () => {
+  const fonteAnalise = {
+    tool: "busca_conhecimento",
+    label: "Base técnica",
+  };
+
+  assert.deepEqual(mesclarFontesAnalise(undefined, [fonteAnalise]), [fonteAnalise]);
 });

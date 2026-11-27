@@ -4,6 +4,7 @@ import { responder } from "./agent";
 import { getTools } from "./tools";
 import { previsaoTempo } from "./tools/previsao-tempo";
 import { montarPerguntaAnalise, type EntradaPlanoPlantio } from "@/plantio/validacao";
+import type { Source } from "./llm/types";
 
 export class PropriedadePlanoNaoEncontrada extends Error {
   constructor() {
@@ -23,6 +24,13 @@ export type PlanoPlantio = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export function mesclarFontesAnalise(
+  fontesPrevisao: Source[] | undefined,
+  fontesResultado: Source[],
+): Source[] {
+  return [...(fontesPrevisao ?? []), ...fontesResultado];
+}
 
 async function propriedadeDoUsuario(userId: string, propertyId: string) {
   const [property] = await db
@@ -134,7 +142,7 @@ export async function analisarPlanoPlantio(userId: string, id: string) {
   });
   return {
     ...resultado,
-    sources: [...previsao.sources, ...resultado.sources],
+    sources: mesclarFontesAnalise(previsao.sources, resultado.sources),
     analisadoEm: new Date().toISOString(),
   };
 }
