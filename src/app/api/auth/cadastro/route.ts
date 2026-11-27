@@ -1,29 +1,34 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { ZodError } from "zod";
+import { cadastroSchema } from "@/auth/validacao";
 import { ErroDeCredencial, cadastrar } from "@/server/auth";
 import { cookieDeSessao } from "@/server/auth-http";
 
 export const runtime = "nodejs";
 
-const Body = z.object({
-  name: z.string().trim().min(1).max(120),
-  email: z.string().trim().email().max(254),
-  senha: z.string().min(8).max(200),
-});
-
 export async function POST(request: Request) {
   let parsed;
   try {
-    parsed = Body.parse(await request.json());
-  } catch {
+    parsed = cadastroSchema.parse(await request.json());
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return NextResponse.json(
+        { error: err.issues[0]?.message ?? "Confira os dados informados." },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
-      { error: "Informe nome, um e-mail válido e uma senha de pelo menos 8 caracteres." },
+      { error: "Informe nome, e-mail, senha e confirmação válidos." },
       { status: 400 },
     );
   }
 
   try {
-    const { usuario, token } = await cadastrar(parsed);
+    const { usuario, token } = await cadastrar({
+      name: parsed.name,
+      email: parsed.email,
+      senha: parsed.senha,
+    });
     return cookieDeSessao(NextResponse.json(usuario, { status: 201 }), request, token);
   } catch (err) {
     if (err instanceof ErroDeCredencial) {

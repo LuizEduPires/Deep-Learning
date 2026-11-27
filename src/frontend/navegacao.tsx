@@ -17,6 +17,7 @@ const ABAS: Aba[] = [
   { href: "/", rotulo: "Início", icone: "inicio", inclui: [] },
   { href: "/conversas", rotulo: "Conversas", icone: "conversa", inclui: ["/chat"] },
   { href: "/agrofit", rotulo: "Produtos", icone: "busca", inclui: ["/bioinsumos"] },
+  { href: "/planos", rotulo: "Planos", icone: "livro", inclui: [] },
   { href: "/fazenda", rotulo: "Fazenda", icone: "broto", inclui: [] },
   { href: "/conta", rotulo: "Conta", icone: "usuario", inclui: [] },
 ];
@@ -99,7 +100,7 @@ function CascaLogada({ caminho, children }: { caminho: string; children: React.R
       {!noChat && (
         <nav
           aria-label="Navegação principal"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 gap-1 border-t border-borda bg-painel px-2 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] md:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 gap-1 border-t border-borda bg-painel px-2 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] md:hidden"
         >
           {ABAS.map((aba) => {
             const on = ativa(aba, caminho);

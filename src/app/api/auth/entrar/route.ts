@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { ZodError } from "zod";
+import { loginSchema } from "@/auth/validacao";
 import { ErroDeCredencial, entrar } from "@/server/auth";
 import { cookieDeSessao } from "@/server/auth-http";
 
 export const runtime = "nodejs";
 
-const Body = z.object({
-  email: z.string().trim().min(1).max(254),
-  senha: z.string().min(1).max(200),
-});
-
 export async function POST(request: Request) {
   let parsed;
   try {
-    parsed = Body.parse(await request.json());
-  } catch {
+    parsed = loginSchema.parse(await request.json());
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return NextResponse.json(
+        { error: err.issues[0]?.message ?? "Informe e-mail e senha válidos." },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({ error: "Informe e-mail e senha." }, { status: 400 });
   }
 

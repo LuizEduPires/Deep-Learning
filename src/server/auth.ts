@@ -5,6 +5,9 @@ import { cookies } from "next/headers";
 import { db, schema } from "./db";
 import { SESSAO_COOKIE, SESSAO_SEGUNDOS, formatoDeToken } from "./sessao";
 
+export const AUTH_COOKIE_NAME = SESSAO_COOKIE;
+export const AUTH_SESSION_MAX_AGE = SESSAO_SEGUNDOS;
+
 const scryptAsync = promisify(scrypt) as (
   senha: string,
   sal: Buffer,
@@ -77,6 +80,8 @@ export async function encerrarSessao(token: string | undefined) {
   await db.delete(schema.sessions).where(eq(schema.sessions.tokenHash, hashDoToken(token)));
 }
 
+export const revokeSession = encerrarSessao;
+
 async function usuarioDoToken(token: string | undefined): Promise<UsuarioPublico | null> {
   if (!formatoDeToken(token)) return null;
   const [achado] = await db
@@ -92,6 +97,8 @@ async function usuarioDoToken(token: string | undefined): Promise<UsuarioPublico
     .limit(1);
   return achado ?? null;
 }
+
+export const getUserFromSession = usuarioDoToken;
 
 /** Usuário logado na requisição atual, ou null. */
 export async function usuarioDaRequisicao() {
@@ -148,6 +155,25 @@ export async function entrar(dados: { email: string; senha: string }) {
 
   const usuario = { id: achado.id, name: achado.name, email: achado.email };
   return { usuario, token: await criarSessao(achado.id) };
+}
+
+export async function registerUser(dados: { name: string; email: string; password: string }) {
+  const { usuario, token } = await cadastrar({
+    name: dados.name,
+    email: dados.email,
+    senha: dados.password,
+  });
+  return { user: usuario, token };
+}
+
+export async function loginUser(email: string, password: string) {
+  try {
+    const { usuario, token } = await entrar({ email, senha: password });
+    return { user: usuario, token };
+  } catch (err) {
+    if (err instanceof ErroDeCredencial && err.status === 401) return null;
+    throw err;
+  }
 }
 
 // ------------------------------------------------------------------ conta

@@ -15,7 +15,7 @@ usuário logado — id de outra conta responde 404.
 
 | Rota | Corpo | Resposta |
 | --- | --- | --- |
-| `POST /api/auth/cadastro` | `{ name, email, senha }` (senha ≥ 8) | 201 + cookie; 409 se o e-mail já existe |
+| `POST /api/auth/cadastro` | `{ name, email, senha, confirmarSenha }` (senha ≥ 8; confirmação igual) | 201 + cookie; 400 se inválido; 409 se o e-mail já existe |
 | `POST /api/auth/entrar` | `{ email, senha }` | 200 + cookie; 401 se não confere |
 | `POST /api/auth/sair` | — | apaga a sessão no banco e o cookie |
 | `GET /api/auth/eu` | — | `{ id, name, email }` ou 401 |
@@ -23,6 +23,36 @@ usuário logado — id de outra conta responde 404.
 O cookie é `httpOnly`, vale 30 dias e guarda um token aleatório; o banco guarda
 só o SHA-256 dele (tabela `sessions`). A senha é gravada com scrypt. Lógica em
 `src/server/auth.ts`.
+
+---
+
+## Autenticação
+
+Os endpoints legados abaixo continuam disponíveis para clientes existentes.
+Eles compartilham a sessão e o cookie `pitaya_sessao` dos endpoints atuais
+descritos acima. Senhas enviadas ao cadastro legado precisam ter ao menos 12
+caracteres e são armazenadas como hash scrypt.
+
+### `POST /api/auth/register`
+
+Recebe `{ "name": "Nome", "email": "produtor@example.com", "password": "uma senha forte" }`.
+Retorna `201 { "user": { "id", "name", "email" } }`; e-mail duplicado retorna
+`409`.
+
+### `POST /api/auth/login`
+
+Recebe `{ "email": "produtor@example.com", "password": "uma senha forte" }`.
+Retorna `200 { "user": { "id", "name", "email" } }`; credenciais inválidas
+retornam `401`.
+
+### `GET /api/auth/session` · `POST /api/auth/logout`
+
+`GET` devolve a conta da sessão atual ou `401`. `POST` revoga a sessão no banco
+e remove o cookie.
+
+`/api/chat`, `/api/conversas`, `/api/propriedades` e suas rotas de recurso
+exigem uma sessão válida. Conversas e propriedades são sempre consultadas no
+escopo do usuário autenticado; envie o cookie de sessão nas chamadas.
 
 ---
 
@@ -182,6 +212,48 @@ nem sai por aqui.
 
 Latitude e longitude são validadas por faixa. `GET` devolve o array das
 propriedades do usuário logado.
+
+---
+
+## Planos de plantio — `/api/planos-plantio`
+
+Os planos pertencem ao usuário autenticado e a uma propriedade desse usuário.
+É possível salvar vários planos por propriedade.
+
+| Rota | Operação |
+| --- | --- |
+| `GET /api/planos-plantio` | lista planos do usuário |
+| `POST /api/planos-plantio` | cria um plano |
+| `POST /api/planos-plantio/{id}/analise` | gera análise atualizada com o agente |
+
+O corpo de `POST` usa:
+
+```json
+{
+  "propertyId": "uuid da propriedade",
+  "cultivar": "Pitaya vermelha",
+  "plannedDate": "2026-10-15",
+  "irrigationAvailable": true,
+  "notes": "Solo bem drenado"
+}
+```
+
+`plannedDate` é uma data ISO (`YYYY-MM-DD`), `cultivar` aceita até 120
+caracteres e `notes` até 1000. A rota de análise retorna `{ text, sources,
+analisadoEm }` e consulta novamente a previsão de até 14 dias e a base local de
+conhecimento. A análise é atualizada sob demanda, não armazenada como previsão
+permanente. Como as fontes atuais não estabelecem faixas térmicas confiáveis
+para cada cultivar, a resposta deve explicitar essa limitação e não inventar
+limites. A previsão curta é indicativa, não determina sozinha a melhor época
+anual de plantio.
+
+| Status | Quando |
+| --- | --- |
+| 400 | dados ou id inválidos |
+| 401 | sem sessão válida |
+| 404 | propriedade inexistente ou pertencente a outro usuário (criação); plano não encontrado (análise) |
+| 500 | falha ao consultar ou criar planos |
+| 502 | falha ao gerar a análise via agente |
 
 ---
 
