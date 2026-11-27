@@ -140,6 +140,6 @@ Precisa de microfone real e de `http://localhost:3000` ou https.
 5. Negar a permissão e recarregar: o botão deve abrir já com o ícone de alerta,
    sem precisar de clique.
 
-O painel de navegador embutido no Claude Code bloqueia captura de dispositivo,
-então por ali só dá para validar os caminhos de erro e de bloqueio — nunca a
-transcrição em si.
+Navegadores embutidos em editores costumam bloquear a captura de microfone;
+neles só dá para validar os caminhos de erro e de bloqueio — nunca a
+transcrição em si. Para testar a transcrição, use o Chrome ou o Edge.

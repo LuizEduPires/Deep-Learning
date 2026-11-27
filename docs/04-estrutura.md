@@ -47,14 +47,13 @@ Componentes `"use client"`. Falam com o back **só** por `fetch` nas rotas de
 | `historico.tsx` | painel "Conversas": lista, abre, cria e apaga conversas |
 | `fazenda.tsx` | dados da propriedade |
 | `planos-plantio.tsx` | criação/listagem de planos e análise climática atualizada |
-| `config-llm.tsx` | painel de troca de provedor e modelo de LLM |
 | `usar-ditado.ts`, `icones-microfone.tsx` | ditado por voz ([09](09-ditado-por-voz.md)) |
-| `agrofit/busca.tsx`, `bioinsumos/busca.tsx` | as duas telas de consulta às bases do MAPA |
+| `andamento-chat.tsx` | o "pensando…" do chat: frases por etapa do agente e a leitura do fluxo NDJSON |
+| `produtos/busca.tsx` | a tela única de produtos (Agrofit, com biológicos, e inoculantes do Bioinsumos) |
+| `produtos/comum.tsx` | cartão, filtros e paginação da tela de produtos |
 
 Os painéis são componentes separados, e não seções do `chat.tsx`, porque cada
-um tem estado e ciclo de vida próprios — o histórico busca a lista quando abre,
-o de LLM busca o catálogo quando monta. Juntos, virariam um componente com
-quatro fetches e sete estados.
+um tem estado e ciclo de vida próprios — o histórico busca a lista quando abre.
 
 ### `src/server` — back
 
@@ -90,7 +89,7 @@ script.
 | `erros.ts` | traduz falha de provedor em mensagem acionável no chat |
 
 São quatro provedores — `anthropic`, `openai`, `openrouter`, `nvidia` — e
-trocar entre eles é clique no painel do chat, sem reiniciar o servidor
+trocar entre eles é mudar `LLM_PROVIDER` no `.env`
 ([README](../README.md#trocando-de-modelo), [08](08-openrouter.md),
 [10](10-nvidia.md)).
 
@@ -168,7 +167,7 @@ esse caminho, como as páginas em `src/app`.
 | Mudar uma consulta ou regra | `src/server/…` |
 | Adicionar um endpoint | `src/app/api/<nome>/route.ts`, delegando ao `src/server` |
 | Adicionar uma tool do agente | `src/server/tools/`, registrando em `tools/index.ts` |
-| Trocar de provedor ou modelo de LLM | painel do chat (botão com o nome do modelo); o `.env` é só o padrão de partida |
+| Trocar de provedor ou modelo de LLM | `LLM_PROVIDER` e `LLM_MODEL` no `.env`, e reiniciar |
 | Adicionar um provedor de LLM | `src/server/llm/<nome>.ts` implementando `LlmProvider`, mais o `switch` de `llm/index.ts` e a entrada em `llm/catalogo.ts` |
-| Adicionar uma chave de API | só no `.env` — nenhum segredo passa pelo painel nem pelo banco |
+| Adicionar uma chave de API | só no `.env` — nenhum segredo passa pelo banco |
 | Alterar tabela | nova migração em `banco/migracoes/`, e o schema em `src/server/db/schema.ts` |

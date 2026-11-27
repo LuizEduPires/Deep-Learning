@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Andamento, perguntarComAndamento } from "./andamento-chat";
 import { usarDitado } from "./usar-ditado";
 import { usarPropriedade, type Fonte } from "./dados";
 import { IconeMicrofone, IconeMicrofoneBloqueado } from "./icones";
@@ -13,6 +14,15 @@ import {
   TIPOS_IMAGEM_FOLHA,
   type LeafInference,
 } from "@/shared/classificador-folha";
+import type { EtapaChat } from "@/shared/etapas-chat";
+
+/** O que POST /api/chat devolve no fim. */
+type RespostaChat = {
+  conversationId: string;
+  text: string;
+  sources?: Fonte[];
+  leafInference?: LeafInference;
+};
 
 type Msg = {
   role: "user" | "assistant";
@@ -46,6 +56,7 @@ export default function Chat() {
   const [titulo, setTitulo] = useState("Nova conversa");
   const [input, setInput] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [etapa, setEtapa] = useState<EtapaChat | null>(null);
   const [abrindo, setAbrindo] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [modelo, setModelo] = useState<string | null>(null);
@@ -130,6 +141,8 @@ export default function Chat() {
 
       setMsgs((m) => [...m, { role: "user", content: pergunta }]);
       setCarregando(true);
+      // Mostra algo já no clique; o servidor corrige conforme avança.
+      setEtapa({ etapa: imagem ? "foto" : "pensando" });
       if (!conversationId) setTitulo(pergunta.length > 60 ? `${pergunta.slice(0, 57)}…` : pergunta);
 
       try {
@@ -150,13 +163,7 @@ export default function Chat() {
             propertyId: propriedade?.id,
           });
         }
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          ...(headers ? { headers } : {}),
-          body,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Falha na requisição");
+        const data = await perguntarComAndamento<RespostaChat>({ headers, body }, setEtapa);
         setConversationId(data.conversationId);
         setInput("");
         setFoto(null);
@@ -187,6 +194,7 @@ export default function Chat() {
       } finally {
         envioAtivo.current = false;
         setCarregando(false);
+        setEtapa(null);
       }
     },
     [carregando, conversationId, propriedade?.id, router],
@@ -328,16 +336,7 @@ export default function Chat() {
           ),
         )}
 
-        {carregando && (
-          <div className="flex items-center gap-2 text-sm text-suave" role="status">
-            <span className="flex gap-1">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-marca-texto" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-marca-texto [animation-delay:150ms]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-marca-texto [animation-delay:300ms]" />
-            </span>
-            {foto ? "Analisando a foto e preparando a resposta…" : "Consultando as fontes…"}
-          </div>
-        )}
+        <Andamento etapa={carregando ? etapa : null} />
         <div ref={fim} />
       </main>
 

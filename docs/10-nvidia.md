@@ -8,7 +8,7 @@ um dos quatro valores possíveis de `LLM_PROVIDER`, ao lado de `anthropic`,
 Entrou como caminho de **demonstração**: a chave é gratuita, sai em dois
 minutos e não pede cartão. Como a cota é por conta e independente da do
 OpenRouter, ela também serve de plano B quando a outra acaba no meio de uma
-apresentação — e trocar, pelo painel do chat, não exige reiniciar nada.
+apresentação — basta trocar `LLM_PROVIDER` no `.env` e reiniciar.
 
 ## 1. Gerar a chave
 
@@ -27,8 +27,7 @@ modelo, e o teto aparece na sua própria conta.
 ## 2. Colar no `.env`
 
 O arquivo é o `.env` da **raiz da pasta principal do projeto**, a mesma de onde
-você roda `npm run dev`. Cada worktree em `.claude/worktrees/` tem o seu
-próprio `.env`, e o app não lê o do worktree.
+você roda `npm run dev`.
 
 ```bash
 NVIDIA_API_KEY=nvapi-cole-a-sua-chave-aqui
@@ -44,13 +43,11 @@ mínimo pronto, que tem só banco e NVIDIA:
 cp .env.nvidia.example .env
 ```
 
-A chave é o único passo que exige o `.env`. Provedor e modelo se escolhem no
-painel do chat — o botão com o nome do modelo, no alto à direita —, e o painel
-só mostra a NVIDIA como disponível depois que `NVIDIA_API_KEY` existir.
+Com `LLM_PROVIDER=nvidia` e a chave preenchidas, reinicie o `npm run dev`.
 
 ## 3. Escolher o modelo
 
-O painel traz uma lista curada dos modelos que suportam **tool calling**, que é
+Use em `LLM_MODEL` um dos modelos que suportam **tool calling**, que é
 o que o agente precisa para consultar Agrofit, Bioinsumos, clima e a base de
 conhecimento. Sem ferramenta, o modelo responde de memória — exatamente o que
 este produto evita.
@@ -62,7 +59,7 @@ este produto evita.
 | `nvidia/nemotron-3-nano-30b-a3b` | o mais rápido, para demonstrar o fluxo |
 | `openai/gpt-oss-120b`, `moonshotai/kimi-k2.6`, `meta/llama-3.1-70b-instruct` | alternativas com tool calling |
 
-"Outro modelo…" no painel aceita qualquer id. O catálogo inteiro está em
+`LLM_MODEL` aceita qualquer id. O catálogo inteiro está em
 https://build.nvidia.com e a lista viva de ids, sem precisar de chave, em:
 
 ```bash
@@ -72,7 +69,7 @@ curl -s https://integrate.api.nvidia.com/v1/models | python -c "import json,sys;
 Essa lista **não** diz quais suportam ferramenta — confira no card do modelo em
 build.nvidia.com antes de usar um id que não está na tabela acima. E confira
 também a data de descontinuação: o `meta/llama-3.3-70b-instruct`, por exemplo,
-sai do ar em 25/08/2026, e por isso ficou fora da lista do painel.
+sai do ar em 25/08/2026, e por isso ficou fora da tabela acima.
 
 ## 4. Validar
 
@@ -89,16 +86,15 @@ Provedor: nvidia | Modelo: nvidia/nemotron-3-super-120b-a12b
 OK — autenticou e usou tool calling.
 ```
 
-O `llm:test` usa o que está valendo: se você trocou pelo painel, é o do painel;
-senão, o do `.env`.
+O `llm:test` usa o provedor e o modelo do `.env`.
 
 ## Erros comuns
 
 | Mensagem | Causa | O que fazer |
 |---|---|---|
-| `403 Authorization failed` | Chave errada, revogada, ausente ou com espaço/aspas na linha do `.env` — a NVIDIA responde 403, não 401. Também aparece quando a conta não tem acesso àquele modelo. | Reescreva a linha do `.env`; se persistir com a chave certa, tente outro modelo no painel. |
+| `403 Authorization failed` | Chave errada, revogada, ausente ou com espaço/aspas na linha do `.env` — a NVIDIA responde 403, não 401. Também aparece quando a conta não tem acesso àquele modelo. | Reescreva a linha do `.env`; se persistir com a chave certa, tente outro `LLM_MODEL`. |
 | `404` | Id do modelo errado ou descontinuado. | Confira na lista viva do passo 3. |
-| `429` | Cota gratuita da conta esgotada. | Aguarde a renovação ou troque de provedor no painel. |
+| `429` | Cota gratuita da conta esgotada. | Aguarde a renovação ou troque `LLM_PROVIDER` no `.env`. |
 | O chat responde sem citar fonte | O modelo não suporta tool calling. | Troque por um da tabela do passo 3. |
 
 Falhas de provedor chegam ao chat traduzidas por `src/server/llm/erros.ts`, com
@@ -109,7 +105,7 @@ o nome do provedor e do modelo que estavam valendo na hora.
 - `src/server/llm/nvidia.ts` — monta o cliente com `baseURL` e chave.
 - `src/server/llm/openai.ts` — o laço de tool calling, compartilhado: NVIDIA,
   OpenRouter e OpenAI falam o mesmo dialeto Chat Completions.
-- `src/server/llm/catalogo.ts` — a lista curada que o painel mostra.
+- `src/server/llm/catalogo.ts` — a lista curada de modelos com tool calling.
 - `src/server/llm/index.ts` — o `switch` do provedor que está valendo.
 
 ## Uma limitação

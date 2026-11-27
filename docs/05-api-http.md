@@ -105,6 +105,25 @@ nem são armazenados no histórico.
 | 502–504 | falha, indisponibilidade ou timeout do classificador |
 | 500 | falha do provedor de LLM ou do banco — a mensagem do erro vem em `error` |
 
+### Andamento em tempo real (`Accept: application/x-ndjson`)
+
+Com esse header, a resposta vem como **uma linha JSON por evento**, enquanto o
+agente trabalha. É o que o chat usa para mostrar "consultando o Agrofit…":
+
+```jsonc
+{"tipo":"etapa","etapa":"pensando"}
+{"tipo":"etapa","etapa":"ferramenta","ferramenta":"consulta_agrofit"}
+{"tipo":"etapa","etapa":"escrevendo"}
+{"tipo":"fim","resposta":{ "conversationId": "uuid", "text": "…", "sources": [ … ] }}
+// ou, no lugar de "fim":
+{"tipo":"erro","error":"…","status":500}
+```
+
+Etapas: `foto` (classificando a imagem), `pensando`, `ferramenta` (com o nome
+da tool) e `escrevendo` (depois de cada tool). O status HTTP é 200 assim que o
+fluxo começa; falhas chegam no evento `erro`, com o status que a resposta JSON
+teria. Sem o header, a rota responde o JSON acima, como sempre.
+
 `maxDuration` é 120s: o agente pode encadear várias tools antes de responder.
 Em perguntas futuras, o agente recebe novamente os resultados da classificação
 guardados nas mensagens anteriores.
@@ -173,8 +192,9 @@ não o conteúdo.
 
 ## `GET /api/llm` · `PUT /api/llm` · `DELETE /api/llm`
 
-Provedor e modelo em uso, e a troca pelo painel do chat. Ver
-[08-openrouter.md](08-openrouter.md) e a seção "Trocando de modelo" do README.
+Provedor e modelo em uso, e a troca por API (o app não tem mais tela para
+isso). `PUT` grava uma escolha que passa na frente do `.env`; `DELETE` a apaga.
+Ver [08-openrouter.md](08-openrouter.md) e a seção "Trocando de modelo" do README.
 
 ```jsonc
 // GET 200
@@ -265,7 +285,7 @@ Embrapa. Exige `npm run agrofit:sync` feito ao menos uma vez.
 | Parâmetro | Efeito |
 | --- | --- |
 | `q` | nome do produto ou nº de registro |
-| `cultura` | casa em `agrofit_indicacoes` |
+| `cultura` | casa em `agrofit_indicacoes`, **incluindo** o registro para "Todas as culturas" |
 | `praga` | nome comum ou científico, na **mesma** indicação da cultura |
 | `ingrediente`, `titular`, `classe` | texto, `ILIKE` |
 | `bio=1` | só produtos biológicos |
@@ -276,11 +296,17 @@ Embrapa. Exige `npm run agrofit:sync` feito ao menos uma vez.
 ```jsonc
 // 200
 {
-  "total": 5, "pagina": 1, "tamanho": 25, "paginas": 1,
-  "temAlvos": true,       // só há coluna de alvos quando veio filtro de cultura
-  "itens": [ { "registration": "7723", "product_name": "Alvofix", … } ]
+  "total": 845, "pagina": 1, "tamanho": 25, "paginas": 34,
+  "temAlvos": true,            // só há coluna de alvos quando veio filtro de cultura
+  "viaTodasAsCulturas": 840,   // quantos casaram só pelo registro genérico
+  "itens": [ { "registration": "7723", "product_name": "Alvofix", "via_todas_as_culturas": false, … } ]
 }
 ```
+
+Com filtro de cultura, os registros que **nomeiam** a cultura vêm primeiro e os
+de "Todas as culturas" depois, cada um marcado em `via_todas_as_culturas`. São
+poucos os nominais (5 para Pitaya), e em ordem alfabética sumiriam entre os
+840 gerais — quase todos biológicos.
 
 Cultura e praga casam **na mesma indicação de uso**. Cruzá-las em colunas
 agregadas acharia produto registrado para a praga em *outra* cultura.

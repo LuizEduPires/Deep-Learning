@@ -1,7 +1,7 @@
 # Handoff de Produto — Chat IA de Manejo da Pitaya
 
-> Documento de descoberta inicial. Nenhuma implementação começa antes da aprovação deste handoff.
-> Data: 2026-07-30 · Status: **APROVADO em 2026-07-30** (com ajuste: provedor de LLM configurável — Anthropic ou OpenAI)
+> Documento de descoberta inicial do projeto: problema, escopo e decisões do MVP.
+> Data: 2026-07-30 · Status: **aprovado pela equipe em 2026-07-30** (com ajuste: provedor de LLM configurável — Anthropic ou OpenAI)
 
 ---
 
@@ -70,10 +70,10 @@ Entregar um **chat conversacional em português** que responde perguntas de mane
 | Decisão | Escolha | Por quê |
 | --- | --- | --- |
 | Arquitetura do agente | **Claude + tool use** (não pipeline fixo) | O modelo decide quais fontes consultar por pergunta; extensível |
-| Modelo / provedor | **Configurável por env: Anthropic (Claude Sonnet) ou OpenAI (GPT)** — camada de abstração de provedor no backend | Decisão do usuário na aprovação; evita lock-in |
+| Modelo / provedor | **Configurável por env: Anthropic (Claude Sonnet) ou OpenAI (GPT)** — camada de abstração de provedor no backend | Evita depender de um único fornecedor |
 | Embeddings (RAG) | OpenAI `text-embedding-3-small` quando houver chave; **fallback para busca full-text (tsvector)** sem chave | Anthropic não oferece API de embeddings; o RAG nunca fica bloqueado |
 | RAG | PostgreSQL + **pgvector** | Um banco só para dados relacionais e vetores; sem serviço extra |
-| Stack | **Next.js + shadcn/ui** (front) · BFF em API routes/Node (back) · PostgreSQL | Padrão dos agentes de arquitetura deste workspace |
+| Stack | **Next.js + Tailwind** (front) · BFF em API routes/Node (back) · PostgreSQL | Uma linguagem só (TypeScript) no front e no back; deploy simples |
 | Previsão do tempo | **Open-Meteo** como default | Gratuita, sem chave, boa cobertura no Brasil; troca fácil depois |
 | Agrofit | API AgroAPI com **cache local dos dados abertos** | Resiliência: dump público garante funcionamento offline da fonte crítica |
 | Idioma | pt-BR em toda a interface e respostas | Público-alvo |
@@ -91,7 +91,7 @@ Entregar um **chat conversacional em português** que responde perguntas de mane
 
 ```mermaid
 flowchart LR
-    U[Usuário<br/>produtor/técnico] --> FE[Next.js + shadcn/ui<br/>Chat UI]
+    U[Usuário<br/>produtor/técnico] --> FE[Next.js + Tailwind<br/>Chat UI]
     FE --> BFF[BFF Node<br/>API routes]
     BFF --> AG[Agente Claude<br/>tool use]
     AG -->|tool| T1[previsao_tempo<br/>Open-Meteo]
@@ -103,18 +103,18 @@ flowchart LR
     ING[Pipeline de ingestão<br/>docs pitaya → chunks → embeddings] --> DB
 ```
 
-## 10. Agentes recomendados (ordem de atuação após aprovação)
+## 10. Ordem de construção
 
-1. **data-architecture** — modelagem PostgreSQL: usuários, propriedades, conversas, mensagens, documentos, chunks/embeddings, cache Agrofit.
-2. **backend-architecture** — BFF, loop do agente Claude, definição das tools, clientes das APIs externas, pipeline de ingestão.
-3. **frontend-architecture** — chat UI (streaming, citações de fonte, histórico), cadastro de propriedade.
+1. **Dados** — modelagem PostgreSQL: usuários, propriedades, conversas, mensagens, documentos, chunks/embeddings, cache Agrofit.
+2. **Backend** — BFF, loop do agente, definição das tools, clientes das APIs externas, pipeline de ingestão.
+3. **Frontend** — chat (citações de fonte, histórico), cadastro de propriedade.
 
 ## 11. Premissas registradas
 
 - Fazenda(s) em localização única conhecida no cadastro (não precisa de geocoding avançado no MVP).
 - Volume baixo de usuários no MVP (< 20) — sem preocupação de escala ainda.
-- Chave da API Claude (Anthropic) será fornecida pelo usuário.
-- Cadastro na AgroAPI Embrapa será feito pelo usuário (gratuito); até lá, plano B cobre as funções críticas.
+- Chave da API Claude (Anthropic) será fornecida pela equipe.
+- Cadastro na AgroAPI Embrapa será feito pela equipe (gratuito); até lá, plano B cobre as funções críticas.
 
 ---
 
@@ -132,6 +132,8 @@ O que veio depois, e onde ler:
 | Provedor de LLM passou de dois para **quatro** (Anthropic, OpenAI, OpenRouter, NVIDIA) | ago/2026 | [08](08-openrouter.md), [10](10-nvidia.md) |
 | Troca de provedor e modelo por **painel no chat**, gravada no banco, sem reiniciar | 2026-08-23 | [README](../README.md#trocando-de-modelo), [05](05-api-http.md) |
 | **Histórico de conversas** na interface: listar, reabrir e apagar | 2026-08-23 | [05](05-api-http.md), [01](01-arquitetura-dados.md) |
+| Painel de troca de modelo **saiu da interface**; provedor e modelo voltam a vir do `.env` | 2026-11-27 | [README](../README.md#trocando-de-modelo) |
+| Agrofit e Bioinsumos viram **uma tela só** de Produtos; chat mostra as **etapas** do agente | 2026-11-27 | [README](../README.md), [05](05-api-http.md) |
 
 Duas premissas da seção 11 envelheceram: a chave da Anthropic deixou de ser
 obrigatória (qualquer um dos quatro provedores serve, e dois têm cota

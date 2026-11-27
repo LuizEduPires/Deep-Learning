@@ -68,7 +68,7 @@ Plano de plantio criado pelo usuário para uma de suas propriedades.
 
 ### configuracoes
 Configuração editável em runtime, uma linha por chave. Hoje só a chave `llm`,
-gravada pelo painel de troca de provedor/modelo do chat.
+gravada por `PUT /api/llm` (o app não tem mais tela de troca de modelo).
 | Campo | Tipo | Regras |
 | --- | --- | --- |
 | chave | text PK | `"llm"` |

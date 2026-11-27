@@ -1,29 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Aviso, CabecalhoPagina, Etiqueta, Icone, Segmentado, classeCartao } from "../ui";
+import { Aviso, CabecalhoPagina, Etiqueta, Icone, classeCartao } from "../ui";
 
 export type CulturaDoProduto = { cultura: string; alvos: string | null };
 
-/** Cabeçalho comum às duas bases, com a troca Agrofit ↔ Bioinsumos. */
-export function CabecalhoProdutos({ base }: { base: "agrofit" | "bioinsumos" }) {
+export function CabecalhoProdutos() {
   return (
-    <>
-      <CabecalhoPagina
-        titulo="Produtos registrados"
-        apoio="Consulta direta à cópia local das bases do MAPA — sem IA: o que aparece aqui é o que está registrado."
-      />
-      <div className="max-w-md">
-        <Segmentado
-          rotulo="Base de consulta"
-          valor={base}
-          opcoes={[
-            { valor: "agrofit", rotulo: "Agrofit", href: "/agrofit" },
-            { valor: "bioinsumos", rotulo: "Bioinsumos", href: "/bioinsumos" },
-          ]}
-        />
-      </div>
-    </>
+    <CabecalhoPagina
+      titulo="Produtos registrados"
+      apoio="Defensivos, biológicos e inoculantes registrados no MAPA — sem IA: o que aparece aqui é o que está registrado."
+    />
   );
 }
 

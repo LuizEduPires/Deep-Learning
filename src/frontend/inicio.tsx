@@ -14,10 +14,10 @@ const PERGUNTAS = [
 ];
 
 const ATALHOS: { href: string; titulo: string; apoio: string; icone: NomeIcone; tom: string }[] = [
-  { href: "/agrofit", titulo: "Agrofit", apoio: "Defensivos registrados", icone: "escudo", tom: "bg-marca-suave text-marca-texto" },
-  { href: "/bioinsumos", titulo: "Bioinsumos", apoio: "Biológicos e inoculantes", icone: "frasco", tom: "bg-acento-suave text-acento-texto" },
+  { href: "/agrofit", titulo: "Produtos", apoio: "Defensivos e biológicos", icone: "escudo", tom: "bg-marca-suave text-marca-texto" },
+  { href: "/agrofit?tipo=inoculantes", titulo: "Inoculantes", apoio: "Fixadores e promotores", icone: "frasco", tom: "bg-acento-suave text-acento-texto" },
   { href: "/conversas", titulo: "Conversas", apoio: "Retome de onde parou", icone: "relogio", tom: "bg-fundo text-texto" },
-  { href: "/fazenda", titulo: "Propriedade", apoio: "Local e modelo de IA", icone: "broto", tom: "bg-fundo text-texto" },
+  { href: "/fazenda", titulo: "Propriedade", apoio: "Localização da propriedade", icone: "broto", tom: "bg-fundo text-texto" },
 ];
 
 const NIVEL: Record<DiaJanela["nivel"], { rotulo: string; icone: NomeIcone; caixa: string; texto: string }> = {

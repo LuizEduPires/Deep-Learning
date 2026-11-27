@@ -59,16 +59,15 @@ Decisão tomada na própria aprovação do handoff: a camada `src/server/llm/`
 abstrai o fornecedor atrás de uma interface única (`llm/types.ts`). Evita
 lock-in e permite trocar de modelo sem tocar nas tools.
 
-São quatro provedores hoje — Anthropic, OpenAI, OpenRouter e NVIDIA — e a
-escolha saiu do `.env` para um **painel no chat**: ela fica na tabela
-`configuracoes`, tem precedência sobre o ambiente e vale na pergunta seguinte,
-sem reiniciar o servidor. O `.env` continua sendo o padrão de partida e guarda
-as chaves, que não passam pelo painel.
+São quatro provedores hoje — Anthropic, OpenAI, OpenRouter e NVIDIA —,
+escolhidos por `LLM_PROVIDER` e `LLM_MODEL` no `.env`, que também guarda as
+chaves. (Houve um painel de troca no app; ele saiu da interface, e a rota
+`/api/llm` ficou.)
 
 A razão prática apareceu rápido: conta sem crédito derruba o chat inteiro, e
 cada provedor tem a sua cota. OpenRouter e NVIDIA têm modelos gratuitos, o que
 mantém a aplicação demonstrável sem custo — e com dois cadastrados, a cota de
-um acabar é uma troca no painel.
+um acabar é uma troca no `.env`.
 
 O que o provedor precisa saber fazer é **tool calling**. Sem isso o agente
 responde de memória em vez de consultar Agrofit, clima e a base — por isso o

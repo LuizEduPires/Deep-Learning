@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import BuscaBioinsumos from "@/frontend/bioinsumos/busca";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Bioinsumos — Dr. Pitaya",
-  description:
-    "Consulta estruturada aos produtos biológicos e inoculantes registrados no MAPA, pela API Bioinsumos da Embrapa.",
-};
-
+/**
+ * Bioinsumos virou parte da tela única de produtos: os biológicos são os
+ * mesmos do Agrofit. O endereço antigo continua valendo, já com o filtro.
+ */
 export default function PaginaBioinsumos() {
-  return <BuscaBioinsumos />;
+  redirect("/agrofit?bio=1");
 }

@@ -6,6 +6,10 @@
  * fundo; a base serve de preenchimento sob texto branco.
  */
 :root {
+  /* Controles nativos (calendário do campo de data, caixas de marcar, barra
+     de rolagem) acompanham o tema; sem isto ficavam claros no modo escuro. */
+  color-scheme: light dark;
+
   --fundo: #f5f1e8;
   --painel: #ffffff;
   --texto: #17261c;
@@ -122,5 +126,23 @@ body {
 
   :where(input, textarea):focus {
     outline: none;
+  }
+}
+
+/* Troca de frase no andamento do chat: a nova surge em vez de pular. */
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+.surgir {
+  animation: surgir 0.35s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surgir {
+    animation: none;
   }
 }
