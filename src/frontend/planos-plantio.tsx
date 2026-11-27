@@ -54,7 +54,10 @@ export default function PlanosPlantio() {
   const [irrigacao, setIrrigacao] = useState(false);
   const [observacoes, setObservacoes] = useState("");
   const [analises, setAnalises] = useState<Record<string, Analise>>({});
+  // Erro de salvar aparece no formulário; o de carregar ou analisar, na lista.
+  // Com um estado só, a mesma mensagem saía duas vezes na tela.
   const [erro, setErro] = useState<string | null>(null);
+  const [erroLista, setErroLista] = useState<string | null>(null);
 
   useEffect(() => {
     let ativa = true;
@@ -64,7 +67,7 @@ export default function PlanosPlantio() {
         if (ativa) setPlanos(dados);
       })
       .catch((err) => {
-        if (ativa) setErro(err instanceof Error ? err.message : String(err));
+        if (ativa) setErroLista(err instanceof Error ? err.message : String(err));
       })
       .finally(() => {
         if (ativa) setCarregando(false);
@@ -111,14 +114,14 @@ export default function PlanosPlantio() {
 
   async function analisar(id: string) {
     setAnalisandoId(id);
-    setErro(null);
+    setErroLista(null);
     try {
       const resultado = await respostaJson<Analise>(
         await fetch(`/api/planos-plantio/${id}/analise`, { method: "POST" }),
       );
       setAnalises((atuais) => ({ ...atuais, [id]: resultado }));
     } catch (err) {
-      setErro(err instanceof Error ? err.message : String(err));
+      setErroLista(err instanceof Error ? err.message : String(err));
     } finally {
       setAnalisandoId(null);
     }
@@ -193,7 +196,7 @@ export default function PlanosPlantio() {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg font-bold">Planos salvos</h2>
-        {erro && propriedade && <p role="alert" className="text-sm text-acento-texto">{erro}</p>}
+        {erroLista && <p role="alert" className="text-sm text-acento-texto">{erroLista}</p>}
         {carregando && <p className="text-sm text-suave">Carregando planos…</p>}
         {!carregando && planos.length === 0 && (
           <p className={`${classeCartao} p-4 text-sm text-suave`}>

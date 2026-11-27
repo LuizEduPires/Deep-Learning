@@ -103,14 +103,14 @@ npm run dev
 
 ## 5. Atualizar os dados do Agrofit e do Bioinsumos
 
-As páginas `/agrofit` e `/bioinsumos` leem cópias locais, então cada uma depende
-de uma coleta feita ao menos uma vez. A do Bioinsumos é rápida:
+A aba Produtos lê cópias locais das duas bases, então depende de uma coleta de
+cada uma feita ao menos uma vez. A do Bioinsumos é rápida:
 
 ```bash
 npm run bioinsumos:sync    # ~40s, 834 produtos + 1.239 inoculantes
 ```
 
-Sem ela, a página `/bioinsumos` avisa que a base está vazia — e é isso mesmo que
+Sem ela, o modo Inoculantes da aba Produtos avisa que a base está vazia — e é isso mesmo que
 deve fazer: mostrar "nenhum resultado" ali daria a entender que não existe
 bioinsumo registrado para a cultura consultada.
 
@@ -228,7 +228,7 @@ docker exec pitaya-db psql -U pitaya -d pitaya -c "SELECT colecao, registros_gra
 
 ## 7. Ligar o chat: a chave de LLM
 
-As páginas `/agrofit` e `/bioinsumos` não dependem de LLM — leem a cópia local
+A aba Produtos (`/agrofit`) não depende de LLM — lê a cópia local
 no Postgres e funcionam sem chave nenhuma. O chat da página inicial precisa de
 **uma** chave, de um dos quatro provedores.
 
@@ -260,10 +260,8 @@ Começando do zero, `.env.nvidia.example` já tem o mínimo para rodar só com a
 NVIDIA: `cp .env.nvidia.example .env` e cole a chave.
 
 Depois de mexer no `.env`, **reinicie o `npm run dev`** — variável de ambiente
-não entra por HMR. Daí em diante, trocar de provedor ou de modelo é clique no
-painel do chat (botão com o nome do modelo, no alto à direita), e aí não
-precisa reiniciar nada: a escolha vai para a tabela `configuracoes` e vale na
-pergunta seguinte. O botão "Usar o do .env" desfaz.
+não entra por HMR. Trocar de provedor ou de modelo é mudar `LLM_PROVIDER` e
+`LLM_MODEL` no `.env` e reiniciar.
 
 Para conferir que a chave autentica e que o modelo sabe chamar ferramenta — as
 duas coisas de que o agente depende:
@@ -287,8 +285,8 @@ npm run llm:test
 | `Falha ao obter token AgroAPI (401)` | Credencial revogada ou errada | Gerar novo par em agroapi.cnptia.embrapa.br |
 | Busca não acha uma cultura | Grafia diferente da do MAPA | Escolher da lista do campo — é "Pitaya", não "pitaia" |
 | Coleta parou no meio | Queda de rede | Rodar de novo; é idempotente e retoma tudo |
-| Chat responde "a conta está sem saldo" ou "cota diária acabou" | Provedor sem crédito ou cota gratuita esgotada | Trocar de provedor no painel do chat; ver 08-openrouter.md e 10-nvidia.md |
-| Mudei `LLM_PROVIDER` no `.env` e nada mudou | O painel gravou uma escolha, que tem precedência | "Usar o do .env" no painel, ou trocar por lá mesmo |
+| Chat responde "a conta está sem saldo" ou "cota diária acabou" | Provedor sem crédito ou cota gratuita esgotada | Trocar `LLM_PROVIDER` no `.env`; ver 08-openrouter.md e 10-nvidia.md |
+| Mudei `LLM_PROVIDER` no `.env` e nada mudou | Faltou reiniciar, ou há uma escolha antiga gravada em `configuracoes` | Reiniciar o `npm run dev`; se persistir, `DELETE FROM configuracoes WHERE chave = 'llm';` |
 
 Se uma coleção específica falhar, o erro fica registrado:
 

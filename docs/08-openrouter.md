@@ -21,8 +21,7 @@ Não é preciso cadastrar cartão para usar os modelos gratuitos.
 ## 2. Colar no `.env`
 
 A chave vai no arquivo `.env` da **raiz da pasta principal do projeto**, a
-mesma de onde você roda `npm run dev`. Cada worktree em `.claude/worktrees/`
-tem o seu próprio `.env`, e o app não lê o do worktree.
+mesma de onde você roda `npm run dev`.
 
 ```bash
 LLM_PROVIDER=openrouter
@@ -41,17 +40,14 @@ OPENROUTER_SITE_NAME=IA Pitaya
 OPENROUTER_SITE_URL=
 ```
 
-> **O painel do chat tem precedência sobre estas linhas.** Se você já trocou
-> de modelo pelo botão com o nome do modelo, no alto do chat, a escolha ficou
-> gravada na tabela `configuracoes` e o `.env` deixou de mandar. Para voltar a
-> mandar por aqui, clique em "Usar o do .env" no painel.
+> Se o `.env` parecer ignorado, pode haver uma escolha antiga gravada na tabela
+> `configuracoes`, que tem precedência. Apague com
+> `DELETE FROM configuracoes WHERE chave = 'llm';`.
 
 ## 3. Escolher o modelo
 
-O jeito mais rápido é pelo painel do chat: o botão com o nome do modelo lista
-os modelos do OpenRouter direto do catálogo deles, gratuitos primeiro, já
-filtrados pelos que suportam tool calling. A troca vale na pergunta seguinte,
-sem reiniciar o servidor. O resto desta seção vale para quem prefere o `.env`.
+O modelo precisa suportar tool calling; prefira os gratuitos (sufixo `:free`)
+para demonstrar sem custo.
 
 `LLM_MODEL` no OpenRouter leva prefixo de provedor — `openai/gpt-4o`,
 `anthropic/claude-sonnet-4.5`, `nvidia/nemotron-3.5-lightning:free`. O catálogo
@@ -87,8 +83,7 @@ Provedor: openrouter | Modelo: nvidia/nemotron-3-ultra-550b-a55b:free
 OK — autenticou e usou tool calling.
 ```
 
-Depois reinicie o servidor, porque mudança de `.env` não entra por HMR (troca
-feita pelo painel do chat não precisa reiniciar nada):
+Depois reinicie o servidor, porque mudança de `.env` não entra por HMR:
 
 ```bash
 npm run dev
@@ -110,10 +105,10 @@ modelos `:free` respondem.
 | `401 User not found` | A chave não pertence a nenhuma conta: foi revogada, ou a conta foi apagada. Não é falta de saldo. | Confira se ela aparece em https://openrouter.ai/settings/keys e gere outra. |
 | `401` logo após colar | Espaço, quebra de linha ou aspas na linha do `.env`. | Reescreva a linha sem aspas e sem espaço em volta do `=`. |
 | `402` | Modelo pago com saldo zerado. | Use um modelo `:free` ou adicione crédito. |
-| `429 Rate limit exceeded: free-models-per-day` | Cota diária de modelos gratuitos da **conta** esgotada — com saldo zero são poucas chamadas por dia, e valem para todos os `:free` somados. | Espere a virada do dia (00h UTC / 21h de Brasília), adicione crédito para ampliar a cota, ou troque de provedor no painel. Trocar de modelo `:free` não adianta. |
+| `429 Rate limit exceeded: free-models-per-day` | Cota diária de modelos gratuitos da **conta** esgotada — com saldo zero são poucas chamadas por dia, e valem para todos os `:free` somados. | Espere a virada do dia (00h UTC / 21h de Brasília), adicione crédito para ampliar a cota, ou troque `LLM_PROVIDER` no `.env`. Trocar de modelo `:free` não adianta. |
 | `404` | Nome do modelo errado. | Confira o prefixo de provedor em https://openrouter.ai/models. |
 | `LLM_PROVIDER inválido` | Valor fora de `anthropic`, `openai`, `openrouter`. | Corrija a grafia no `.env`. |
-| Mudei o `.env` e nada mudou | O painel do chat gravou uma escolha, que tem precedência. | Clique em "Usar o do .env" no painel, ou troque por lá mesmo. |
+| Mudei o `.env` e nada mudou | Faltou reiniciar, ou há uma escolha antiga gravada em `configuracoes`, que tem precedência. | Reinicie o `npm run dev`; se persistir, `DELETE FROM configuracoes WHERE chave = 'llm';`. |
 | O chat responde sem citar fonte | O modelo escolhido não suporta tool calling. | Troque por um da lista do passo 3. |
 | `504 Upstream idle timeout exceeded` | O provedor por trás do modelo demorou mais que o limite do OpenRouter. Comum em modelo gratuito sob carga. | Repita ou troque `LLM_MODEL`. O OpenRouter devolve esse erro com HTTP 200 e corpo `{error}`, sem `choices`; `llm/openai.ts` detecta e traduz. |
 
@@ -127,9 +122,9 @@ limite de requisições, em vez do JSON cru da resposta HTTP.
 - `src/server/llm/openai.ts` — o laço de tool calling, compartilhado, porque o
   OpenRouter fala o mesmo dialeto Chat Completions da OpenAI.
 - `src/server/llm/index.ts` — o `switch`, lido da configuração que está valendo.
-- `src/server/llm/config.ts` — painel (tabela `configuracoes`) na frente do `.env`.
-- `src/server/llm/modelos-openrouter.ts` — a lista de modelos que o painel mostra.
-- `src/app/api/llm/route.ts` e `src/frontend/config-llm.tsx` — o painel em si.
+- `src/server/llm/config.ts` — lê o `.env` (e uma escolha gravada em `configuracoes`, se houver).
+- `src/server/llm/modelos-openrouter.ts` — a lista de modelos com tool calling, usada por `/api/llm`.
+- `src/app/api/llm/route.ts` — consulta e troca de modelo por API (sem tela no app).
 - `scripts/llm-test.ts` — o teste de fumaça do passo 4.
 
 ## Uma limitação

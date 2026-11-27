@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ConfigLlm from "./config-llm";
 import { usarPropriedade, type Propriedade } from "./dados";
 import {
   CabecalhoPagina,
@@ -105,63 +104,59 @@ export default function Fazenda() {
         apoio="A localização alimenta o clima e a janela de pulverização."
       />
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <section className="flex flex-col gap-4">
-          <div className="relative h-[170px] overflow-hidden rounded-[20px] border border-borda bg-[repeating-linear-gradient(115deg,#D6E4CF_0px,#D6E4CF_18px,#CBDCC3_18px,#CBDCC3_36px)]">
-            <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#1E5B3A]">
-              {propriedade?.name ?? "Sua propriedade"}
-            </span>
-            <svg viewBox="0 0 44 52" aria-hidden="true" className="absolute top-12 left-1/2 h-[52px] w-11 -translate-x-1/2">
-              <path d="M22 50s18-15 18-30a18 18 0 0 0-36 0c0 15 18 30 18 30z" fill="var(--acento)" />
-              <circle cx="22" cy="20" r="7" fill="#FFFFFF" />
-            </svg>
-            {temCoord && (
-              <a
-                href={`https://www.openstreetmap.org/?mlat=${latN}&mlon=${lonN}#map=15/${latN}/${lonN}`}
-                target="_blank"
-                rel="noreferrer"
-                className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap text-[#17261C]"
-              >
-                {formatarCoord(latN)} · {formatarCoord(lonN)}
-                <Icone nome="externo" className="h-3.5 w-3.5" />
-              </a>
-            )}
+      <section className="flex flex-col gap-4 lg:max-w-xl">
+        <div className="relative h-[170px] overflow-hidden rounded-[20px] border border-borda bg-[repeating-linear-gradient(115deg,#D6E4CF_0px,#D6E4CF_18px,#CBDCC3_18px,#CBDCC3_36px)]">
+          <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#1E5B3A]">
+            {propriedade?.name ?? "Sua propriedade"}
+          </span>
+          <svg viewBox="0 0 44 52" aria-hidden="true" className="absolute top-12 left-1/2 h-[52px] w-11 -translate-x-1/2">
+            <path d="M22 50s18-15 18-30a18 18 0 0 0-36 0c0 15 18 30 18 30z" fill="var(--acento)" />
+            <circle cx="22" cy="20" r="7" fill="#FFFFFF" />
+          </svg>
+          {temCoord && (
+            <a
+              href={`https://www.openstreetmap.org/?mlat=${latN}&mlon=${lonN}#map=15/${latN}/${lonN}`}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap text-[#17261C]"
+            >
+              {formatarCoord(latN)} · {formatarCoord(lonN)}
+              <Icone nome="externo" className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={usarLocalizacao}
+          disabled={localizando}
+          className={classeBotaoContorno}
+        >
+          <Icone nome="mira" className="h-[18px] w-[18px]" />
+          {localizando ? "Localizando…" : "Usar minha localização atual"}
+        </button>
+
+        <form onSubmit={salvar} className={`${classeCartao} flex flex-col gap-3 p-4`}>
+          <Campo rotulo="Nome da propriedade" valor={nome} aoMudar={setNome} dica="Sítio Boa Vista" obrigatorio />
+          <div className="grid grid-cols-2 gap-3">
+            <Campo rotulo="Latitude" valor={lat} aoMudar={setLat} dica="-22.9" inputMode="decimal" obrigatorio />
+            <Campo rotulo="Longitude" valor={lon} aoMudar={setLon} dica="-47.1" inputMode="decimal" obrigatorio />
           </div>
-
-          <button
-            type="button"
-            onClick={usarLocalizacao}
-            disabled={localizando}
-            className={classeBotaoContorno}
-          >
-            <Icone nome="mira" className="h-[18px] w-[18px]" />
-            {localizando ? "Localizando…" : "Usar minha localização atual"}
+          {msg && (
+            <p className={`text-sm ${msg.tipo === "ok" ? "text-marca-texto" : "text-acento-texto"}`} role="status">
+              {msg.texto}
+            </p>
+          )}
+          {erroCarga && !propriedade && (
+            <p className="text-sm text-acento-texto">
+              Não consegui ler a propriedade salva. O banco está rodando?
+            </p>
+          )}
+          <button type="submit" disabled={salvando} className={classeBotaoPrimario}>
+            {salvando ? "Salvando…" : propriedade ? "Salvar alterações" : "Salvar propriedade"}
           </button>
-
-          <form onSubmit={salvar} className={`${classeCartao} flex flex-col gap-3 p-4`}>
-            <Campo rotulo="Nome da propriedade" valor={nome} aoMudar={setNome} dica="Sítio Boa Vista" obrigatorio />
-            <div className="grid grid-cols-2 gap-3">
-              <Campo rotulo="Latitude" valor={lat} aoMudar={setLat} dica="-22.9" inputMode="decimal" obrigatorio />
-              <Campo rotulo="Longitude" valor={lon} aoMudar={setLon} dica="-47.1" inputMode="decimal" obrigatorio />
-            </div>
-            {msg && (
-              <p className={`text-sm ${msg.tipo === "ok" ? "text-marca-texto" : "text-acento-texto"}`} role="status">
-                {msg.texto}
-              </p>
-            )}
-            {erroCarga && !propriedade && (
-              <p className="text-sm text-acento-texto">
-                Não consegui ler a propriedade salva. O banco está rodando?
-              </p>
-            )}
-            <button type="submit" disabled={salvando} className={classeBotaoPrimario}>
-              {salvando ? "Salvando…" : propriedade ? "Salvar alterações" : "Salvar propriedade"}
-            </button>
-          </form>
-        </section>
-
-        <ConfigLlm />
-      </div>
+        </form>
+      </section>
     </main>
   );
 }

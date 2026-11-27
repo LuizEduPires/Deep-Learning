@@ -40,28 +40,28 @@ export function descreveFalhaDeLlm(
   // Cota diária de modelos gratuitos do OpenRouter. Vem como 429 com um corpo
   // que fala em "credits", então tem que ser testada ANTES da regra de saldo,
   // senão o usuário é mandado repor crédito — e o limite é por conta e por dia,
-  // não por modelo: trocar de :free no painel não resolve.
+  // não por modelo: trocar de :free não resolve.
   if (status === 429 && /free-models-per-day|free model/i.test(bruto)) {
-    return `${onde} A cota diária de modelos gratuitos do OpenRouter acabou. Ela é da conta inteira, não do modelo — trocar por outro ":free" no painel não adianta. Espere a virada do dia (00h UTC), adicione crédito no OpenRouter para liberar mais chamadas gratuitas por dia, ou troque de provedor no painel do chat.`;
+    return `${onde} A cota diária de modelos gratuitos do OpenRouter acabou. Ela é da conta inteira, não do modelo — trocar por outro ":free" não adianta. Espere a virada do dia (00h UTC), adicione crédito no OpenRouter para liberar mais chamadas gratuitas por dia, ou troque de provedor em LLM_PROVIDER no .env.`;
   }
 
   // O saldo esgotado chega como 400 na Anthropic e como 402 no OpenRouter.
   if (status === 402 || /credit|balance|quota|insufficient/i.test(bruto)) {
-    return `${onde} A conta está sem saldo para chamar o modelo. Reponha crédito no provedor ou troque de provedor no painel do chat.`;
+    return `${onde} A conta está sem saldo para chamar o modelo. Reponha crédito no provedor ou troque de provedor em LLM_PROVIDER no .env.`;
   }
 
   switch (status) {
     case 401:
     case 403:
-      return `${onde} A chave de API foi recusada. Confira a variável de ambiente da chave no .env (o painel troca provedor e modelo, mas a chave só sai de lá) — se ela foi revogada, gere outra no painel do provedor.`;
+      return `${onde} A chave de API foi recusada. Confira a variável de ambiente da chave no .env — se ela foi revogada, gere outra no site do provedor.`;
     case 404:
-      return `${onde} Modelo não encontrado. Confira o modelo no painel do chat — no OpenRouter o id leva prefixo de provedor, como "openai/gpt-4o".`;
+      return `${onde} Modelo não encontrado. Confira LLM_MODEL no .env — no OpenRouter o id leva prefixo de provedor, como "openai/gpt-4o".`;
     case 429:
       return `${onde} Limite de requisições atingido. Aguarde alguns instantes e tente de novo.`;
     case 504:
       // "Upstream idle timeout exceeded" do OpenRouter: o provedor por trás do
       // modelo demorou demais. Acontece com modelo gratuito sob carga.
-      return `${onde} O modelo demorou demais para responder e a conexão expirou. Modelos gratuitos ficam lentos sob carga — tente de novo ou troque de modelo no painel do chat.`;
+      return `${onde} O modelo demorou demais para responder e a conexão expirou. Modelos gratuitos ficam lentos sob carga — tente de novo ou troque LLM_MODEL no .env.`;
     default:
       if (status >= 500) {
         return `${onde} O provedor está indisponível no momento (HTTP ${status}). Tente novamente em instantes.`;

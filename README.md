@@ -51,26 +51,24 @@ npm run dev
 
 Abra http://localhost:3000, cadastre a propriedade (nome + lat/lon) e pergunte.
 
-No alto do chat ficam os três botões que controlam a sessão: **Conversas**
-(histórico — retomar uma conversa antiga, começar outra ou apagar), o **modelo**
-em uso (troca de provedor e modelo, ver abaixo) e a **propriedade** em
-contexto.
+No alto do chat ficam o histórico de **Conversas** (retomar uma conversa
+antiga, começar outra ou apagar) e a **propriedade** em contexto.
 
 ## Trocando de modelo
 
-Pelo painel, no chat: o botão com o nome do modelo, no alto à direita, abre a
-escolha de provedor e modelo. A troca vale a partir da próxima pergunta — sem
-editar arquivo, sem reiniciar o servidor.
-
-O que você salva ali fica na tabela `configuracoes` (chave `llm`) e tem
-precedência sobre o `.env`; o botão "Usar o do .env" apaga a linha e devolve o
-controle ao ambiente. Enquanto o painel nunca foi usado, vale o `.env`:
+Provedor e modelo vêm do `.env`. Depois de mudar, reinicie o `npm run dev`:
 
 ```bash
 LLM_PROVIDER=openrouter         # anthropic | openai | openrouter | nvidia
 OPENROUTER_API_KEY=sk-or-...
 LLM_MODEL=openai/gpt-4o         # opcional — vazio usa o padrão do provedor
 ```
+
+A interface não oferece mais a troca de modelo. A rota `/api/llm` continua
+existindo, e uma escolha gravada por ela na tabela `configuracoes` (chave `llm`)
+tem precedência sobre o `.env`. Se o `.env` parecer ignorado, apague essa
+escolha com `DELETE /api/llm` (logado) ou
+`DELETE FROM configuracoes WHERE chave = 'llm';`.
 
 ### Servidor compatível com OpenAI
 
@@ -91,7 +89,7 @@ para o chat e, quando embeddings estão habilitados,
 `POST https://llm.exemplo.com/v1/embeddings` para o RAG. **Não** coloque
 `/chat/completions`, `/embeddings` ou `/models` em `OPENAI_BASE_URL`: são caminhos
 de operação, não a URL base. O app não consulta `/models` para o provedor
-`openai`; escolha `LLM_MODEL` no `.env` ou "Outro modelo…" no painel. Se seu
+`openai`; informe `LLM_MODEL` no `.env`. Se seu
 servidor oferece `/chat/completions` diretamente na raiz, use só
 `https://llm.exemplo.com`; se oferece outro prefixo, informe esse prefixo.
 Confira os caminhos na documentação oficial da OpenAI para
@@ -114,23 +112,20 @@ Para demonstrar a aplicação sem custo, a **NVIDIA** é o caminho mais curto:
 chave gratuita e sem cartão em build.nvidia.com, cota própria e uma centena de
 modelos abertos — ver [docs/10-nvidia.md](docs/10-nvidia.md). Como cada
 provedor tem a sua cota, ter dois cadastrados significa que a demonstração
-sobrevive à cota de um deles acabar: troca no painel e segue.
+sobrevive à cota de um deles acabar: troca `LLM_PROVIDER` no `.env` e segue.
 
-No OpenRouter o painel lista os modelos direto do catálogo deles, gratuitos
-primeiro, e só os que suportam tool calling — sem isso o agente responde de
-memória em vez de consultar Agrofit, clima e a base. Para Anthropic, OpenAI e
-NVIDIA a lista é a curada em `src/server/llm/catalogo.ts`, e "Outro modelo…"
-aceita qualquer id em qualquer provedor.
+O modelo precisa suportar tool calling — sem isso o agente responde de memória
+em vez de consultar Agrofit, clima e a base. Sugestões por provedor estão em
+`src/server/llm/catalogo.ts`; `npm run llm:test` confere chave e tool calling.
 
-**As chaves de API continuam só no `.env`.** O painel não edita segredo: ele
-mostra quais provedores têm chave e quais não têm, para a troca não virar erro
-na primeira pergunta. Detalhes do OpenRouter em [docs/08-openrouter.md](docs/08-openrouter.md).
+**As chaves de API ficam só no `.env`.** Detalhes do OpenRouter em
+[docs/08-openrouter.md](docs/08-openrouter.md).
 
 Não há código específico de fornecedor fora de `src/server/llm/`. Para
 acrescentar um quinto, implemente a interface `LlmProvider`
 (`src/server/llm/types.ts`), registre no `switch` de `src/server/llm/index.ts` e
-adicione a entrada em `src/server/llm/catalogo.ts` — o painel se monta a partir
-do catálogo, e as tools e o resto da aplicação não mudam.
+adicione a entrada em `src/server/llm/catalogo.ts` — as tools e o resto da
+aplicação não mudam.
 
 ## Fontes de dados
 
@@ -313,10 +308,12 @@ Isso não é conforto, é correção: a busca é `ILIKE` sobre o nome exato, ent
 
 A mesma consulta pela API: `GET /api/agrofit?cultura=Pitaya&praga=antracnose`.
 
-### Consultar pela interface: `/bioinsumos`
+### Consultar pela interface: aba Produtos
 
-`http://localhost:3000/bioinsumos` — mesma ideia da página Agrofit, **sem LLM**,
-em duas abas: produtos biológicos para controle de pragas e inoculantes.
+Os biológicos do Bioinsumos são os mesmos do Agrofit (mesmo registro), então a
+interface tem uma tela só, em `/agrofit`: o atalho **Biológicos** filtra os 834,
+e o atalho **Inoculantes** abre os inoculantes, que só existem no Bioinsumos.
+`/bioinsumos` redireciona para `/agrofit?bio=1`. **Sem LLM**, como antes.
 
 Consulta ao Postgres, como a página Agrofit: exige `npm run bioinsumos:sync`
 uma vez, e a partir daí não há chamada à Embrapa em tempo de request — ~50ms
@@ -412,8 +409,8 @@ src/
     page.tsx, agrofit/page.tsx, bioinsumos/page.tsx    páginas (só montam o front)
     api/                                              rotas HTTP (só traduzem HTTP)
   frontend/     FRONT — componentes de UI ("use client")
-    chat.tsx, historico.tsx, config-llm.tsx    o chat e seus painéis
-    agrofit/busca.tsx, bioinsumos/busca.tsx
+    chat.tsx, historico.tsx                    o chat e seus painéis
+    produtos/busca.tsx, andamento-chat.tsx
     usar-ditado.ts, icones-microfone.tsx       ditado por voz
   server/       BACK — regra de negócio, nada de HTTP nem de React
     agent.ts, tools/                o agente e as 4 tools (+1 com token da AgroAPI)

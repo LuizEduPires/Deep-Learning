@@ -6,8 +6,29 @@ import {
 } from "./classificador-folha";
 import { db, schema } from "./db";
 import { montarMensagensDoChat } from "./mensagens-chat";
-import type { Source } from "./llm/types";
+import type { Source, ToolDef } from "./llm/types";
 import { usuarioAtual } from "./auth";
+import { getTools } from "./tools";
+import type { EtapaChat } from "@/shared/etapas-chat";
+
+/**
+ * As tools do agente, cada uma avisando `aoEtapa` antes de rodar e, ao
+ * terminar, que o modelo voltou a escrever. Embrulhar aqui, em vez de mexer no
+ * laço de cada provedor, deixa o aviso valendo para todos eles de uma vez.
+ */
+function toolsComAviso(aoEtapa: (e: EtapaChat) => void): ToolDef[] {
+  return getTools().map((tool) => ({
+    ...tool,
+    run: async (input, ctx) => {
+      aoEtapa({ etapa: "ferramenta", ferramenta: tool.name });
+      try {
+        return await tool.run(input, ctx);
+      } finally {
+        aoEtapa({ etapa: "escrevendo" });
+      }
+    },
+  }));
+}
 
 export interface PerguntaDoChat {
   conversationId?: string;
@@ -43,9 +64,16 @@ function tituloDe(mensagem: string) {
  * A propriedade entra no contexto porque as tools de clima precisam de
  * coordenadas; sem `propertyId` explícito vale a primeira propriedade do
  * usuário logado.
+ *
+ * `aoEtapa`, quando presente, recebe o andamento (foto, pensando, cada
+ * ferramenta, escrevendo) para a tela mostrar enquanto a resposta não chega.
  */
-export async function responderNaConversa(pergunta: PerguntaDoChat) {
+export async function responderNaConversa(
+  pergunta: PerguntaDoChat,
+  aoEtapa?: (e: EtapaChat) => void,
+) {
   const user = await usuarioAtual();
+  if (pergunta.foto) aoEtapa?.({ etapa: "foto" });
   const analise = pergunta.foto
     ? await classificarImagemFolha(pergunta.foto)
     : undefined;
@@ -97,8 +125,10 @@ export async function responderNaConversa(pergunta: PerguntaDoChat) {
 
   const messages = montarMensagensDoChat(historico, pergunta.message, analise);
 
+  aoEtapa?.({ etapa: "pensando" });
   const resposta = await responder({
     messages,
+    ...(aoEtapa ? { tools: toolsComAviso(aoEtapa) } : {}),
     ctx: {
       property: property
         ? {

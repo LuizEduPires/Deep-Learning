@@ -100,7 +100,7 @@ function CascaLogada({ caminho, children }: { caminho: string; children: React.R
       {!noChat && (
         <nav
           aria-label="Navegação principal"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 gap-1 border-t border-borda bg-painel px-2 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] md:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 gap-0.5 border-t border-borda bg-painel px-1 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] md:hidden"
         >
           {ABAS.map((aba) => {
             const on = ativa(aba, caminho);
@@ -109,12 +109,14 @@ function CascaLogada({ caminho, children }: { caminho: string; children: React.R
                 key={aba.href}
                 href={aba.href}
                 aria-current={on ? "page" : undefined}
-                className={`flex flex-col items-center justify-center gap-[3px] text-xs ${
+                // Seis abas não cabem com texto de 12px abaixo de ~380px:
+                // "Conversas" encostava em "Produtos" num celular de 320px.
+                className={`flex min-w-0 flex-col items-center justify-center gap-[3px] text-[11px] tracking-tight min-[380px]:text-xs min-[380px]:tracking-normal ${
                   on ? "font-bold text-marca-texto" : "font-semibold text-suave"
                 }`}
               >
                 <span
-                  className={`flex h-[30px] w-12 items-center justify-center rounded-full ${
+                  className={`flex h-[30px] w-10 items-center justify-center rounded-full min-[380px]:w-12 ${
                     on ? "bg-marca-suave" : ""
                   }`}
                 >
