@@ -54,7 +54,7 @@ export function createOpenAiCompatibleProvider({
       ];
 
       const sources: Source[] = [];
-      const maxIterations = req.maxIterations ?? 8;
+      const maxIterations = req.maxIterations ?? 5;
 
       for (let i = 0; i < maxIterations; i++) {
         const completion = (await client.chat.completions.create({
@@ -89,38 +89,44 @@ export function createOpenAiCompatibleProvider({
 
         messages.push(message);
 
-        for (const call of calls) {
-          if (call.type !== "function") continue;
-          const tool = byName.get(call.function.name);
-          if (!tool) {
-            messages.push({
-              role: "tool",
-              tool_call_id: call.id,
-              content: `Ferramenta desconhecida: ${call.function.name}`,
-            });
-            continue;
-          }
-          try {
-            const input = JSON.parse(call.function.arguments || "{}") as Record<
-              string,
-              unknown
-            >;
-            const out = await tool.run(input, req.ctx);
-            if (out.sources) sources.push(...out.sources);
-            messages.push({
-              role: "tool",
-              tool_call_id: call.id,
-              content: out.text,
-            });
-          } catch (err) {
-            messages.push({
-              role: "tool",
-              tool_call_id: call.id,
-              content: `Falha ao consultar ${call.function.name}: ${
-                err instanceof Error ? err.message : String(err)
-              }. Informe ao usuário que essa fonte está indisponível e siga com as demais.`,
-            });
-          }
+        const toolResults = await Promise.all(
+          calls.map(async (call) => {
+            if (call.type !== "function") return undefined;
+            const tool = byName.get(call.function.name);
+            if (!tool) {
+              return {
+                call,
+                content: `Ferramenta desconhecida: ${call.function.name}`,
+                sources: [],
+              };
+            }
+            try {
+              const input = JSON.parse(call.function.arguments || "{}") as Record<
+                string,
+                unknown
+              >;
+              const out = await tool.run(input, req.ctx);
+              return { call, content: out.text, sources: out.sources ?? [] };
+            } catch (err) {
+              return {
+                call,
+                content: `Falha ao consultar ${call.function.name}: ${
+                  err instanceof Error ? err.message : String(err)
+                }. Informe ao usuário que essa fonte está indisponível e siga com as demais.`,
+                sources: [],
+              };
+            }
+          }),
+        );
+
+        for (const result of toolResults) {
+          if (!result) continue;
+          sources.push(...result.sources);
+          messages.push({
+            role: "tool",
+            tool_call_id: result.call.id,
+            content: result.content,
+          });
         }
       }
 
